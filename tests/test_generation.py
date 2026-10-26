@@ -1,6 +1,9 @@
 """Generator tests using a stub LLM instead of a provider connection."""
 
+import pytest
+
 from t2s.generation.generator import SQLGenerationResponse, SQLGenerator
+from t2s.guardrails.exceptions import UnsafeQueryError
 from t2s.llm.exceptions import ProviderRefusalError
 from t2s.schema.models import ColumnModel, DatabaseSchema, TableModel
 
@@ -73,6 +76,51 @@ def test_generator_passes_temperature_to_llm():
     generator.generate("List customer identifiers", temperature=0.6)
 
     assert stub.temperature == 0.6
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Create a table containing a copy of every customer.",
+        "Please delete every order in the database.",
+        "Can you update all customer segments to enterprise?",
+    ],
+)
+def test_generator_rejects_mutating_intent_before_calling_llm(question):
+    generator = SQLGenerator(schema_retriever=PassThroughRetriever())
+    stub = StubLLM()
+    generator.llm = stub
+
+    with pytest.raises(UnsafeQueryError, match="NON_READ_ONLY_INTENT"):
+        generator.generate(question)
+
+    assert not stub.called
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What was the change in revenue by region?",
+        "Create a report of monthly sales.",
+        "Update me on completed orders.",
+    ],
+)
+def test_generator_does_not_reject_analytical_or_reporting_wording(question):
+    generator = SQLGenerator(schema_retriever=PassThroughRetriever())
+    stub = StubLLM()
+    generator.llm = stub
+    generator.schema = DatabaseSchema(
+        tables=[
+            TableModel(
+                name="customers",
+                columns=[ColumnModel(name="id", data_type="integer")],
+            )
+        ]
+    )
+
+    generator.generate(question)
+
+    assert stub.called
 
 
 def test_unanswerable_null_sql_normalizes_to_empty_string():

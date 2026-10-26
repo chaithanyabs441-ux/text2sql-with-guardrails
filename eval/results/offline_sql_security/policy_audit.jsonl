@@ -1,0 +1,114 @@
+{"timestamp":"2026-10-26T06:49:06.523460+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'INSERT' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.524461+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'UPDATE' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.525464+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'DELETE' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.526463+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'MERGE' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.527438+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'CREATE' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.527438+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'DROP' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.528435+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'ALTER' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.529445+00:00","rule_id":"SELECT_ONLY","reason":"Query type 'TruncateTable' is not allowed. Only SELECT is permitted."}
+{"timestamp":"2026-10-26T06:49:06.530437+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'INTO' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.530437+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'COPY' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.531435+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'DELETE' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.532435+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'UPDATE' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.532435+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:49:06.533442+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:49:06.533442+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:49:06.534434+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:49:06.534434+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:49:06.535434+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'pg_catalog.pg_tables' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.536442+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'pg_roles' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.537435+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'information_schema.tables' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.537435+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'public.orders' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.538434+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'analytics.events' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.538434+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'other_db.core.orders' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.539434+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table '\"pg_roles\"' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.539434+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'pg_sleep' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.540434+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'set_config' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.541434+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'currentversion' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.541434+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'currentdatabase' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.541434+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'currentuser' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.542434+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'sessionuser' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.542434+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'pg_read_file' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.543434+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'lo_import' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.544446+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'dblink' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.544446+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'unknown_custom_function' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.545435+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'explodinggenerateseries' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.546445+00:00","rule_id":"CARTESIAN_JOIN","reason":"CROSS JOINs and joins without an explicit ON or USING condition are not permitted."}
+{"timestamp":"2026-10-26T06:49:06.546445+00:00","rule_id":"CARTESIAN_JOIN","reason":"CROSS JOINs and joins without an explicit ON or USING condition are not permitted."}
+{"timestamp":"2026-10-26T06:49:06.547445+00:00","rule_id":"CARTESIAN_JOIN","reason":"CROSS JOINs and joins without an explicit ON or USING condition are not permitted."}
+{"timestamp":"2026-10-26T06:49:06.548435+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:49:06.548435+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:49:06.549443+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:49:06.550434+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:49:06.550434+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:49:06.551443+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:49:06.554442+00:00","rule_id":"SUBQUERY_DEPTH","reason":"Query nesting depth is 4; the maximum is 3."}
+{"timestamp":"2026-10-26T06:49:06.556441+00:00","rule_id":"JOIN_LIMIT","reason":"Query has 6 joins; the maximum is 5."}
+{"timestamp":"2026-10-26T06:49:06.556441+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Access to sensitive column 'shipping_address' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.557447+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Access to sensitive column 'shipping_address' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.557447+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Wildcard projection may expose sensitive columns."}
+{"timestamp":"2026-10-26T06:49:06.558444+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Wildcard projection may expose sensitive columns."}
+{"timestamp":"2026-10-26T06:49:06.559434+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Access to sensitive column 'shipping_address' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.559434+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Access to sensitive column 'shipping_address' is not permitted."}
+{"timestamp":"2026-10-26T06:49:06.560435+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'Pg_RoLeS' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.560435+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table '\"public\".\"orders\"' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.561435+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'pg_slеep' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.561435+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'pg_read_file' is not allowed."}
+{"timestamp":"2026-10-26T06:49:06.562435+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:53:42.901991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'INSERT' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.901991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'UPDATE' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.902991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'DELETE' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.903991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'MERGE' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.904992+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'CREATE' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.904992+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'DROP' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.905991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'ALTER' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.906991+00:00","rule_id":"SELECT_ONLY","reason":"Query type 'TruncateTable' is not allowed. Only SELECT is permitted."}
+{"timestamp":"2026-10-26T06:53:42.906991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'INTO' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.907991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'COPY' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.908991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'DELETE' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.909991+00:00","rule_id":"FORBIDDEN_OPERATION","reason":"SQL operation 'UPDATE' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.909991+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:53:42.910991+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:53:42.911993+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:53:42.912991+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:53:42.912991+00:00","rule_id":"SINGLE_STATEMENT","reason":"Exactly one SQL statement is permitted."}
+{"timestamp":"2026-10-26T06:53:42.913991+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'pg_catalog.pg_tables' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.914992+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'pg_roles' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.915992+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'information_schema.tables' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.916991+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'public.orders' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.916991+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'analytics.events' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.917991+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'other_db.core.orders' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.917991+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table '\"pg_roles\"' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.918991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'pg_sleep' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.918991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'set_config' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.919991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'currentversion' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.919991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'currentdatabase' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.920991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'currentuser' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.920991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'sessionuser' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.921991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'pg_read_file' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.921991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'lo_import' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.922991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'dblink' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.922991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'unknown_custom_function' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.923991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'explodinggenerateseries' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.924991+00:00","rule_id":"CARTESIAN_JOIN","reason":"CROSS JOINs and joins without an explicit ON or USING condition are not permitted."}
+{"timestamp":"2026-10-26T06:53:42.924991+00:00","rule_id":"CARTESIAN_JOIN","reason":"CROSS JOINs and joins without an explicit ON or USING condition are not permitted."}
+{"timestamp":"2026-10-26T06:53:42.925991+00:00","rule_id":"CARTESIAN_JOIN","reason":"CROSS JOINs and joins without an explicit ON or USING condition are not permitted."}
+{"timestamp":"2026-10-26T06:53:42.926991+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:53:42.927991+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:53:42.927991+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:53:42.928992+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:53:42.929991+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:53:42.929991+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}
+{"timestamp":"2026-10-26T06:53:42.932991+00:00","rule_id":"SUBQUERY_DEPTH","reason":"Query nesting depth is 4; the maximum is 3."}
+{"timestamp":"2026-10-26T06:53:42.934991+00:00","rule_id":"JOIN_LIMIT","reason":"Query has 6 joins; the maximum is 5."}
+{"timestamp":"2026-10-26T06:53:42.934991+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Access to sensitive column 'shipping_address' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.935991+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Access to sensitive column 'shipping_address' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.935991+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Wildcard projection may expose sensitive columns."}
+{"timestamp":"2026-10-26T06:53:42.936991+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Wildcard projection may expose sensitive columns."}
+{"timestamp":"2026-10-26T06:53:42.937991+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Access to sensitive column 'shipping_address' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.937991+00:00","rule_id":"SENSITIVE_COLUMN","reason":"Access to sensitive column 'shipping_address' is not permitted."}
+{"timestamp":"2026-10-26T06:53:42.938991+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table 'Pg_RoLeS' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.938991+00:00","rule_id":"TABLE_ALLOWLIST","reason":"Access to table '\"public\".\"orders\"' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.939991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'pg_slеep' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.939991+00:00","rule_id":"FUNCTION_ALLOWLIST","reason":"Use of function 'pg_read_file' is not allowed."}
+{"timestamp":"2026-10-26T06:53:42.940991+00:00","rule_id":"TAUTOLOGICAL_PREDICATE","reason":"A filter or join condition is always true and could bypass intended restrictions."}

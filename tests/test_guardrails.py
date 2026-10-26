@@ -184,6 +184,63 @@ def test_caps_nested_query_limits(sql_policy):
     assert safe_sql.upper().count("LIMIT 1000") == 2
 
 
+def test_caps_large_offset_to_configured_maximum(sql_policy):
+    policy = SQLPolicyEngine(max_rows=50, audit_log_path=sql_policy.audit_log_path)
+
+    safe_sql = policy.validate("SELECT id FROM orders LIMIT 10 OFFSET 100000000")
+
+    assert "LIMIT 10" in safe_sql.upper()
+    assert "OFFSET 50" in safe_sql.upper()
+    assert "100000000" not in safe_sql
+
+
+def test_preserves_offset_below_configured_maximum(sql_policy):
+    policy = SQLPolicyEngine(max_rows=50, audit_log_path=sql_policy.audit_log_path)
+
+    safe_sql = policy.validate("SELECT id FROM orders LIMIT 10 OFFSET 20")
+
+    assert "OFFSET 20" in safe_sql.upper()
+    assert "OFFSET 50" not in safe_sql.upper()
+
+
+def test_caps_negative_offset_to_zero(sql_policy):
+    safe_sql = sql_policy.validate("SELECT id FROM orders OFFSET -5")
+
+    assert "OFFSET 0" in safe_sql.upper()
+
+
+def test_caps_nested_query_offsets(sql_policy):
+    safe_sql = sql_policy.validate(
+        "SELECT q.id FROM (SELECT id FROM orders OFFSET 2000) q OFFSET 3000"
+    )
+
+    assert safe_sql.upper().count("OFFSET 1000") == 2
+
+
+@pytest.mark.parametrize(
+    "condition",
+    ["true", "1 = 1", "'x' = 'x'"],
+)
+def test_blocks_constant_true_join_conditions(sql_policy, condition):
+    sql = (
+        "SELECT c.id FROM customers c JOIN regions r ON "
+        f"{condition}"
+    )
+
+    with pytest.raises(UnsafeQueryError) as exc_info:
+        sql_policy.validate(sql)
+
+    assert exc_info.value.layer == "TAUTOLOGICAL_PREDICATE"
+
+
+def test_allows_select_star_on_non_sensitive_table_by_design(sql_policy):
+    safe_sql = sql_policy.validate("SELECT * FROM customers")
+
+    assert "SELECT" in safe_sql.upper()
+    assert "*" in safe_sql
+    assert "LIMIT 1000" in safe_sql.upper()
+
+
 def test_enforces_join_count(sql_policy):
     policy = SQLPolicyEngine(
         max_joins=1,

@@ -1,9 +1,11 @@
 import logging
+import re
 
 from pydantic import BaseModel, Field, field_validator
 
 from t2s.config import settings
 from t2s.generation.prompt_builder import PromptBuilder
+from t2s.guardrails.exceptions import UnsafeQueryError
 from t2s.guardrails.policy import SQLPolicyEngine
 from t2s.llm.exceptions import ProviderRefusalError
 from t2s.llm.openai_adapter import OpenAICompatibleAdapter
@@ -12,6 +14,18 @@ from t2s.schema.models import DatabaseSchema
 from t2s.schema.retriever import SchemaRetriever
 
 logger = logging.getLogger(__name__)
+
+_MUTATING_INTENT = re.compile(
+    r"^\s*(?:(?:please|kindly)\s+|(?:(?:can|could|would)\s+you\s+)|"
+    r"(?:(?:i|we)\s+(?:want|need)\s+you\s+to\s+))*"
+    r"(?:drop|delete|remove|truncate|update|insert|alter|modify|set|cancel|"
+    r"wipe|erase|destroy|merge|upsert|change)\b"
+    r"(?!\s+(?:in|on|about|over|from|by|me)\b)|"
+    r"^\s*(?:(?:please|kindly)\s+|(?:(?:can|could|would)\s+you\s+))*"
+    r"create\s+(?:(?:a|an|the|new|temporary)\s+)?"
+    r"(?:table|view|index|schema|database|copy|record|row)\b",
+    re.IGNORECASE,
+)
 
 # The strict Pydantic model for the LLM output
 class SQLGenerationResponse(BaseModel):
@@ -68,6 +82,12 @@ class SQLGenerator:
         temperature: float = 0.0,
     ) -> tuple[SQLGenerationResponse, str]:
         """Generate SQL at a sampling temperature, then enforce policy."""
+        if _MUTATING_INTENT.search(question):
+            raise UnsafeQueryError(
+                "Requests to create or modify database data or objects are not permitted.",
+                layer="NON_READ_ONLY_INTENT",
+            )
+
         schema = self.get_schema()
         relevant_schema = self.schema_retriever.filter_schema(question, schema)
         prompt = self.prompt_builder.build_generation_prompt(

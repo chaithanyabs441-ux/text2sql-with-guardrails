@@ -35,32 +35,47 @@ def _samples() -> list[dict[str, object]]:
 
 def test_calibrator_splits_by_question_and_reports_baseline(tmp_path):
     rows = _samples()
-    model, report, labels, probabilities = fit_and_evaluate(rows, seed=7)
+    model, report, labels, probabilities = fit_and_evaluate(
+        rows, seed=7, bootstrap_samples=100
+    )
 
     assert len(FEATURE_NAMES) == model.coef_.shape[1] == 5
     assert report.sample_count == len(rows)
-    assert (
-        report.train_question_count
-        + report.validation_question_count
-        + report.test_question_count
-        == 40
-    )
-    assert report.test_candidate_count == len(labels) == len(probabilities)
+    assert report.question_count == 40
+    assert report.repeat_count == 3
+    assert report.fold_count == 5
+    assert report.seeds == (7, 8, 9)
+    assert len(labels) == len(probabilities) == len(rows)
     assert report.calibrator["auroc"] == 1.0
     assert report.calibrator["brier_score"] < report.self_reported_confidence["brier_score"]
     assert report.calibrator["ece"] is not None
+    assert set(report.bootstrap_intervals) == {
+        "combined",
+        "self_reported_confidence_platt",
+    }
+    assert len(report.signal_ablation) == 11
+    assert report.selective_prediction
+    assert report.abstention_thresholds["answer_threshold"] <= 1.0
 
     diagram = tmp_path / "reliability.svg"
     write_reliability_svg(diagram, labels, probabilities)
     assert '<svg ' in diagram.read_text(encoding="utf-8")
+    from t2s.verification.calibration import write_ablation_svg, write_selective_svg
+
+    selective = tmp_path / "selective.svg"
+    ablation = tmp_path / "ablation.svg"
+    write_selective_svg(selective, report.selective_prediction)
+    write_ablation_svg(ablation, report.signal_ablation)
+    assert '<svg ' in selective.read_text(encoding="utf-8")
+    assert '<svg ' in ablation.read_text(encoding="utf-8")
 
 
-def test_thresholds_are_selected_from_validation_error():
+def test_warn_threshold_is_selected_within_the_warning_band():
     thresholds = tune_abstention_thresholds(
         np.asarray([0, 0, 1, 1]), np.asarray([0.2, 0.4, 0.7, 0.9])
     )
 
-    assert thresholds == {"answer_threshold": 0.7, "warn_threshold": 0.4}
+    assert thresholds == {"answer_threshold": 0.7, "warn_threshold": 0.2}
 
 
 def test_signal_extraction_uses_candidate_agreement_and_cached_judge(tmp_path):

@@ -24,9 +24,11 @@ from t2s.verification.back_translation import HallucinationDetector  # noqa: E40
 from t2s.verification.calibration import (  # noqa: E402
     FEATURE_NAMES,
     fit_and_evaluate,
+    write_ablation_svg,
     write_reliability_svg,
+    write_selective_svg,
 )
-from t2s.verification.result_comparison import result_fingerprint  # noqa: E402
+from t2s.verification.result_comparison import result_sets_equal  # noqa: E402
 from t2s.verification.sanity_checks import ResultSanityChecker  # noqa: E402
 
 
@@ -54,6 +56,11 @@ def _coverage(record: dict[str, Any]) -> float:
     return len(references & declared) / len(references)
 
 
+def _results_equivalent(left: pd.DataFrame, right: pd.DataFrame) -> bool:
+    """Treat reordered columns alike while requiring both outputs' columns."""
+    return result_sets_equal(left, right) and result_sets_equal(right, left)
+
+
 def build_samples(
     records: list[dict[str, Any]],
     output_dir: Path,
@@ -72,14 +79,29 @@ def build_samples(
     for record in records:
         grouped[str(record.get("question_id", "unknown"))].append(record)
 
-    result_clusters: dict[str, Counter[tuple[int, tuple[str, ...]]]] = {}
+    result_clusters: dict[str, list[tuple[pd.DataFrame, int]]] = {}
     for question_id, candidates in grouped.items():
-        fingerprints = Counter()
+        cluster_frames: list[pd.DataFrame] = []
+        cluster_counts: Counter[int] = Counter()
         for record in candidates:
             rows = record.get("generated_rows")
             if rows is not None and record.get("generated_execution_error") is None:
-                fingerprints[result_fingerprint(pd.DataFrame(rows))] += 1
-        result_clusters[question_id] = fingerprints
+                frame = pd.DataFrame(rows)
+                cluster_id = next(
+                    (
+                        index
+                        for index, representative in enumerate(cluster_frames)
+                        if _results_equivalent(representative, frame)
+                    ),
+                    None,
+                )
+                if cluster_id is None:
+                    cluster_id = len(cluster_frames)
+                    cluster_frames.append(frame)
+                cluster_counts[cluster_id] += 1
+        result_clusters[question_id] = [
+            (frame, cluster_counts[index]) for index, frame in enumerate(cluster_frames)
+        ]
     sanity_checker = ResultSanityChecker()
     samples = []
     for record in records:
@@ -99,14 +121,21 @@ def build_samples(
             similarity = detector.calculate_similarity(record["question"], translated)
             cache[sql] = {"question": translated, "similarity": similarity}
             cache_path.write_text(json.dumps(cache, indent=2), encoding="utf-8")
-        fingerprint = result_fingerprint(pd.DataFrame(generated_rows))
+        frame = pd.DataFrame(generated_rows)
         clusters = result_clusters[str(record["question_id"])]
         question_id = str(record["question_id"])
         agreement_key = f"{question_id}:{record.get('strategy', 'schema_glossary')}"
         agreement = (
             agreement_by_question[agreement_key]
             if agreement_by_question is not None
-            else clusters[fingerprint] / max(1, len(grouped[question_id]))
+            else next(
+                (
+                    count / max(1, len(grouped[question_id]))
+                    for representative, count in clusters
+                    if _results_equivalent(representative, frame)
+                ),
+                0.0,
+            )
         )
         warnings = sanity_checker.check(pd.DataFrame(generated_rows))
         samples.append(
@@ -201,6 +230,12 @@ def main() -> int:
                 "Fraction of SQL-referenced tables listed in the generation's tables_used field."
             ),
         },
+        "cross_validation": {
+            "group_by": "question_id",
+            "folds": report.fold_count,
+            "repeats": report.repeat_count,
+            "seeds": list(report.seeds),
+        },
         **report.__dict__,
         "model": {
             "type": "logistic_regression",
@@ -212,10 +247,14 @@ def main() -> int:
         json.dumps(report_data, indent=2), encoding="utf-8"
     )
     write_reliability_svg(args.output_dir / "reliability.svg", labels, probabilities)
+    write_selective_svg(
+        args.output_dir / "selective_prediction.svg", report.selective_prediction
+    )
+    write_ablation_svg(args.output_dir / "signal_ablation.svg", report.signal_ablation)
     print(f"Calibration samples: {report.sample_count}")
     print(
-        f"Question split: {report.train_question_count} train / "
-        f"{report.test_question_count} test"
+        f"Grouped CV: {report.question_count} questions; "
+        f"{report.repeat_count} repeats x {report.fold_count} folds"
     )
     print(f"Combined signals: {report.calibrator}")
     print(f"Self-reported confidence: {report.self_reported_confidence}")

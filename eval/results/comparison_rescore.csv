@@ -1,0 +1,4 @@
+strategy,comparable_pairs,old_correct,old_accuracy,new_correct,new_accuracy
+schema_glossary,51,29,0.5686274509803921,40,0.7843137254901961
+schema_glossary_selfcorrect,51,29,0.5686274509803921,40,0.7843137254901961
+zero_shot,50,23,0.46,36,0.72

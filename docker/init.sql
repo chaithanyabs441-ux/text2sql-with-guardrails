@@ -110,47 +110,104 @@ INSERT INTO categories (name, parent_id) VALUES
 INSERT INTO products (name, category_id, unit_price)
 SELECT 
     'Product ' || i, 
-    (i % 4) + 4, 
+    CASE
+        WHEN i <= 55 THEN 4
+        WHEN i <= 80 THEN 5
+        WHEN i <= 93 THEN 6
+        ELSE 7
+    END,
     (random() * 1000 + 10)::numeric(10,2)
 FROM generate_series(1, 100) i;
 
 -- Insert 50 Employees
 INSERT INTO employees (region_id, first_name, last_name, hire_date)
 SELECT 
-    (i % 3) + 1, 'First' || i, 'Last' || i, CURRENT_DATE - (i * 10 || ' days')::interval
+    (i % 3) + 1,
+    'First' || i,
+    'Last' || i,
+    CASE
+        WHEN i % 10 = 0 THEN NULL
+        ELSE CURRENT_DATE - ((i * 37) % 3650)
+    END
 FROM generate_series(1, 50) i;
 
 -- Insert 10,000 Customers
-INSERT INTO customers (region_id, name, segment, is_deleted)
+INSERT INTO customers (region_id, name, segment, created_at, is_deleted)
 SELECT 
-    (i % 3) + 1, 
+    CASE
+        WHEN i % 173 = 0 THEN NULL
+        ELSE ((i * 17 + (i / 7) * 11) % 3) + 1
+    END,
     'Customer ' || i,
-    CASE (i % 3) WHEN 0 THEN 'enterprise' WHEN 1 THEN 'smb' ELSE 'consumer' END,
+    CASE
+        WHEN i % 100 < 10 THEN 'enterprise'
+        WHEN i % 100 < 40 THEN 'smb'
+        ELSE 'consumer'
+    END,
+    CURRENT_TIMESTAMP - ((i * 29) % 1826) * INTERVAL '1 day',
     CASE WHEN i % 50 = 0 THEN TRUE ELSE FALSE END -- 2% soft deleted
 FROM generate_series(1, 10000) i;
 
 -- Insert 50,000 Orders
-INSERT INTO orders (customer_id, employee_id, status, order_date, gross_revenue, net_revenue)
+INSERT INTO orders (
+    customer_id, employee_id, status, order_date, gross_revenue, net_revenue, shipping_address
+)
 SELECT 
-    (i % 10000) + 1,
-    (i % 50) + 1,
-    CASE (i % 10) WHEN 0 THEN 'pending' WHEN 1 THEN 'cancelled' WHEN 2 THEN 'returned' ELSE 'completed' END,
-    CURRENT_TIMESTAMP - (i * 1 || ' hours')::interval,
-    (random() * 5000 + 100)::numeric(12,2),
-    (random() * 4500 + 90)::numeric(12,2) -- Net is lower than gross
+    CASE WHEN i % 173 = 0 THEN NULL ELSE (i % 10000) + 1 END,
+    CASE
+        WHEN i % 100 < 30 THEN (i % 5) + 1
+        WHEN i % 100 < 55 THEN (i % 10) + 6
+        WHEN i % 100 < 75 THEN (i % 15) + 16
+        WHEN i % 100 < 90 THEN (i % 15) + 31
+        ELSE (i % 5) + 46
+    END,
+    CASE
+        WHEN i % 100 < 55 THEN 'completed'
+        WHEN i % 100 < 75 THEN 'pending'
+        WHEN i % 100 < 90 THEN 'cancelled'
+        ELSE 'returned'
+    END,
+    CURRENT_TIMESTAMP
+        - ((i * 31) % 1826) * INTERVAL '1 day'
+        - ((i * 17) % 24) * INTERVAL '1 hour',
+    CASE
+        WHEN i % 113 = 0 THEN NULL
+        ELSE (random() * 5000 + 100)::numeric(12,2)
+    END,
+    CASE
+        WHEN i % 127 = 0 THEN NULL
+        ELSE (random() * 4500 + 90)::numeric(12,2)
+    END,
+    CASE
+        WHEN i % 5 = 0 THEN 'Street ' || (i % 900 + 1) || ', Sample City'
+        ELSE NULL
+    END
 FROM generate_series(1, 50000) i;
 
--- Insert 150,000 Order Items (1 to 3 items per order)
+-- Insert up to 3 items per non-cancelled order, with skewed product demand.
 INSERT INTO order_items (order_id, product_id, quantity, discount_pct, line_total)
 SELECT 
     o.id,
-    (o.id % 100) + 1,
+    CASE
+        WHEN ((o.id * 3 + item.item_no) % 100) < 60
+            THEN ((o.id * 3 + item.item_no) % 10) + 1
+        WHEN ((o.id * 3 + item.item_no) % 100) < 85
+            THEN ((o.id * 11 + item.item_no * 7) % 20) + 11
+        WHEN ((o.id * 3 + item.item_no) % 100) < 95
+            THEN ((o.id * 13 + item.item_no) % 40) + 31
+        ELSE ((o.id * 17 + item.item_no * 3) % 30) + 71
+    END,
     (random() * 5 + 1)::int,
-    CASE WHEN random() > 0.8 THEN (random() * 0.2)::numeric(5,2) ELSE 0.00 END,
+    CASE
+        WHEN (o.id * 3 + item.item_no) % 17 = 0 THEN NULL
+        WHEN random() > 0.8 THEN (random() * 0.2)::numeric(5,2)
+        ELSE 0.00
+    END,
     (random() * 1000 + 10)::numeric(12,2)
 FROM orders o
-CROSS JOIN generate_series(1, 3) -- Up to 3 items per order
-WHERE o.status != 'cancelled';
+CROSS JOIN generate_series(1, 3) AS item(item_no)
+WHERE o.status <> 'cancelled'
+  AND item.item_no <= CASE WHEN o.id % 10 = 0 THEN 1 WHEN o.id % 3 = 0 THEN 2 ELSE 3 END;
 
 -- A separate application login with read-only access to business data.
 DO $$

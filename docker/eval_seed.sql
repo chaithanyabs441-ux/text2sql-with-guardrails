@@ -18,7 +18,8 @@ BEGIN
                 ELSE 'success'
             END,
             o.order_date + INTERVAL '2 hours'
-        FROM core.orders AS o;
+        FROM core.orders AS o
+        WHERE o.net_revenue IS NOT NULL;
     END IF;
 
     IF NOT EXISTS (SELECT 1 FROM core.returns) THEN

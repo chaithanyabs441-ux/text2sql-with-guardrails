@@ -10,54 +10,400 @@
     "agreement_ratio": "Dominant result set among 3 candidates generated at temperatures 0.0, 0.3, and 0.7 for the row's prompting strategy; failed candidates count against agreement.",
     "schema_coverage": "Fraction of SQL-referenced tables listed in the generation's tables_used field."
   },
-  "sample_count": 152,
-  "train_question_count": 29,
-  "validation_question_count": 10,
-  "test_question_count": 13,
-  "test_candidate_count": 39,
+  "cross_validation": {
+    "group_by": "question_id",
+    "folds": 5,
+    "repeats": 3,
+    "seeds": [
+      42,
+      43,
+      44
+    ]
+  },
+  "sample_count": 150,
+  "question_count": 52,
+  "fold_count": 5,
+  "repeat_count": 3,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
   "calibrator": {
-    "auroc": 0.8289473684210525,
-    "brier_score": 0.22047563712582965,
-    "ece": 0.21268521069401292
+    "auroc": 0.7565257565257565,
+    "brier_score": 0.15852996672037867,
+    "ece": 0.15030379321286558
   },
   "self_reported_confidence": {
-    "auroc": 0.7157894736842105,
-    "brier_score": 0.4255128205128206,
-    "ece": 0.4343589743589744
+    "auroc": 0.4611919611919612,
+    "brier_score": 0.19270014991391698,
+    "ece": 0.00019821014753063082
+  },
+  "bootstrap_intervals": {
+    "combined": {
+      "auroc": {
+        "lower": 0.5663922259249157,
+        "upper": 0.9349727754149345,
+        "valid_bootstrap_replicates": 1000
+      },
+      "brier_score": {
+        "lower": 0.10817678288822187,
+        "upper": 0.21145584971899103,
+        "valid_bootstrap_replicates": 1000
+      },
+      "ece": {
+        "lower": 0.09650397732218358,
+        "upper": 0.22894388444548847,
+        "valid_bootstrap_replicates": 1000
+      }
+    },
+    "self_reported_confidence_platt": {
+      "auroc": {
+        "lower": 0.30199586831933894,
+        "upper": 0.6455971408438513,
+        "valid_bootstrap_replicates": 1000
+      },
+      "brier_score": {
+        "lower": 0.1377857783750844,
+        "upper": 0.25143302448615956,
+        "valid_bootstrap_replicates": 1000
+      },
+      "ece": {
+        "lower": 0.0019561451430314654,
+        "upper": 0.13345183368253136,
+        "valid_bootstrap_replicates": 1000
+      }
+    }
   },
   "reliability_bins": [
     {
-      "count": 5,
-      "confidence": 0.391421685665679,
+      "count": 6,
+      "confidence": 0.4513794339748818,
+      "accuracy": 0.5
+    },
+    {
+      "count": 7,
+      "confidence": 0.5661587206137467,
       "accuracy": 0.0
     },
     {
-      "count": 9,
-      "confidence": 0.47982256040194116,
-      "accuracy": 0.2222222222222222
+      "count": 25,
+      "confidence": 0.6425923330315311,
+      "accuracy": 0.32
     },
     {
-      "count": 25,
-      "confidence": 0.5592315301951745,
-      "accuracy": 0.72
+      "count": 46,
+      "confidence": 0.7948175130311342,
+      "accuracy": 0.9130434782608695
+    },
+    {
+      "count": 66,
+      "confidence": 0.8062495179526242,
+      "accuracy": 0.8787878787878788
     }
   ],
   "abstention_thresholds": {
-    "answer_threshold": 1.01,
-    "warn_threshold": 0.4900165994243052
+    "answer_threshold": 0.7973690373462673,
+    "warn_threshold": 0.5919393942319687
   },
+  "abstention_diagnostics": {
+    "selection_source": "repeated_grouped_out_of_fold_predictions",
+    "answer": {
+      "target_precision": 0.9,
+      "minimum_coverage": 0.1,
+      "target_reached": true,
+      "observed_precision": 0.9,
+      "observed_coverage": 0.5333333333333333,
+      "selected_threshold": 0.7973690373462673
+    },
+    "warn": {
+      "target_precision": 0.6,
+      "minimum_coverage": 0.1,
+      "target_reached": true,
+      "observed_precision": 0.6,
+      "observed_coverage": 0.4,
+      "selected_threshold": 0.5919393942319687
+    },
+    "target_unreachable": false
+  },
+  "decision_level_metrics": {
+    "answer": {
+      "count": 80,
+      "coverage": 0.5333333333333333,
+      "precision": 0.9
+    },
+    "warn": {
+      "count": 60,
+      "coverage": 0.4,
+      "precision": 0.6
+    },
+    "abstain": {
+      "count": 10,
+      "coverage": 0.06666666666666667,
+      "precision": 0.3
+    }
+  },
+  "signal_ablation": [
+    {
+      "name": "single:back_translation_similarity",
+      "signals": [
+        "back_translation_similarity"
+      ],
+      "metrics": {
+        "auroc": 0.5063525063525063,
+        "brier_score": 0.1924603277597209,
+        "ece": 8.267159459496298e-05
+      }
+    },
+    {
+      "name": "single:agreement_ratio",
+      "signals": [
+        "agreement_ratio"
+      ],
+      "metrics": {
+        "auroc": 0.6201201201201201,
+        "brier_score": 0.1711482240456,
+        "ece": 0.1418723130300804
+      }
+    },
+    {
+      "name": "single:sanity_warning_count",
+      "signals": [
+        "sanity_warning_count"
+      ],
+      "metrics": {
+        "auroc": 0.46165396165396166,
+        "brier_score": 0.18207913768204212,
+        "ece": 0.03538775797846883
+      }
+    },
+    {
+      "name": "single:self_reported_confidence",
+      "signals": [
+        "self_reported_confidence"
+      ],
+      "metrics": {
+        "auroc": 0.4611919611919612,
+        "brier_score": 0.19270014991391698,
+        "ece": 0.00019821014753063082
+      }
+    },
+    {
+      "name": "single:schema_coverage",
+      "signals": [
+        "schema_coverage"
+      ],
+      "metrics": {
+        "auroc": 0.4345114345114345,
+        "brier_score": 0.19300747155921522,
+        "ece": 0.0003011456814857594
+      }
+    },
+    {
+      "name": "leave_one_out:back_translation_similarity",
+      "signals": [
+        "agreement_ratio",
+        "sanity_warning_count",
+        "self_reported_confidence",
+        "schema_coverage"
+      ],
+      "metrics": {
+        "auroc": 0.7423192423192423,
+        "brier_score": 0.1586065288318732,
+        "ece": 0.14688785833333856
+      }
+    },
+    {
+      "name": "leave_one_out:agreement_ratio",
+      "signals": [
+        "back_translation_similarity",
+        "sanity_warning_count",
+        "self_reported_confidence",
+        "schema_coverage"
+      ],
+      "metrics": {
+        "auroc": 0.6241626241626242,
+        "brier_score": 0.18147806970517094,
+        "ece": 0.03498245772577272
+      }
+    },
+    {
+      "name": "leave_one_out:sanity_warning_count",
+      "signals": [
+        "back_translation_similarity",
+        "agreement_ratio",
+        "self_reported_confidence",
+        "schema_coverage"
+      ],
+      "metrics": {
+        "auroc": 0.6461076461076461,
+        "brier_score": 0.17082156039756557,
+        "ece": 0.16039851002650712
+      }
+    },
+    {
+      "name": "leave_one_out:self_reported_confidence",
+      "signals": [
+        "back_translation_similarity",
+        "agreement_ratio",
+        "sanity_warning_count",
+        "schema_coverage"
+      ],
+      "metrics": {
+        "auroc": 0.7519057519057518,
+        "brier_score": 0.15859563198585083,
+        "ece": 0.15039464582919224
+      }
+    },
+    {
+      "name": "leave_one_out:schema_coverage",
+      "signals": [
+        "back_translation_similarity",
+        "agreement_ratio",
+        "sanity_warning_count",
+        "self_reported_confidence"
+      ],
+      "metrics": {
+        "auroc": 0.7560637560637561,
+        "brier_score": 0.15844197315459432,
+        "ece": 0.15026118070659172
+      }
+    },
+    {
+      "name": "all_signals",
+      "signals": [
+        "back_translation_similarity",
+        "agreement_ratio",
+        "sanity_warning_count",
+        "self_reported_confidence",
+        "schema_coverage"
+      ],
+      "metrics": {
+        "auroc": 0.7565257565257565,
+        "brier_score": 0.15852996672037867,
+        "ece": 0.15030379321286558
+      }
+    }
+  ],
+  "selective_prediction": [
+    {
+      "threshold": 0.8178667795004392,
+      "coverage": 0.006666666666666667,
+      "accuracy": 0.0
+    },
+    {
+      "threshold": 0.8121451953814788,
+      "coverage": 0.05333333333333334,
+      "accuracy": 0.625
+    },
+    {
+      "threshold": 0.8094198327646153,
+      "coverage": 0.1,
+      "accuracy": 0.6666666666666666
+    },
+    {
+      "threshold": 0.8066508855505804,
+      "coverage": 0.16,
+      "accuracy": 0.7916666666666666
+    },
+    {
+      "threshold": 0.8055824901417395,
+      "coverage": 0.2,
+      "accuracy": 0.8
+    },
+    {
+      "threshold": 0.8052429268854806,
+      "coverage": 0.25333333333333335,
+      "accuracy": 0.8421052631578947
+    },
+    {
+      "threshold": 0.8033434589569283,
+      "coverage": 0.3,
+      "accuracy": 0.8222222222222222
+    },
+    {
+      "threshold": 0.8027108975300293,
+      "coverage": 0.35333333333333333,
+      "accuracy": 0.8490566037735849
+    },
+    {
+      "threshold": 0.8008534904906971,
+      "coverage": 0.4,
+      "accuracy": 0.8666666666666667
+    },
+    {
+      "threshold": 0.7990706398834243,
+      "coverage": 0.46,
+      "accuracy": 0.8840579710144928
+    },
+    {
+      "threshold": 0.7975708955400838,
+      "coverage": 0.5066666666666667,
+      "accuracy": 0.8947368421052632
+    },
+    {
+      "threshold": 0.7966485588493332,
+      "coverage": 0.5466666666666666,
+      "accuracy": 0.8780487804878049
+    },
+    {
+      "threshold": 0.7946799242054979,
+      "coverage": 0.6133333333333333,
+      "accuracy": 0.8913043478260869
+    },
+    {
+      "threshold": 0.7942113857861516,
+      "coverage": 0.6466666666666666,
+      "accuracy": 0.8969072164948454
+    },
+    {
+      "threshold": 0.7923116559719873,
+      "coverage": 0.7066666666666667,
+      "accuracy": 0.8962264150943396
+    },
+    {
+      "threshold": 0.6943071305484545,
+      "coverage": 0.7466666666666667,
+      "accuracy": 0.8928571428571429
+    },
+    {
+      "threshold": 0.6531183613451036,
+      "coverage": 0.8,
+      "accuracy": 0.8416666666666667
+    },
+    {
+      "threshold": 0.6383356522279767,
+      "coverage": 0.8466666666666667,
+      "accuracy": 0.8267716535433071
+    },
+    {
+      "threshold": 0.6249332994422682,
+      "coverage": 0.9,
+      "accuracy": 0.8
+    },
+    {
+      "threshold": 0.53872750046771,
+      "coverage": 0.9466666666666667,
+      "accuracy": 0.7605633802816901
+    },
+    {
+      "threshold": 0.40628907176340673,
+      "coverage": 1.0,
+      "accuracy": 0.74
+    }
+  ],
   "model": {
     "type": "logistic_regression",
     "intercept": [
-      -1.561235312433313
+      -2.1055362904543458
     ],
     "coefficients": [
       [
-        0.6951495936792655,
-        0.8806449698445459,
-        -0.6451689533421884,
-        0.04417566500462543,
-        0.22529946370587656
+        0.4863716364267902,
+        2.618267284040358,
+        -2.0562972963364907,
+        0.28847788996601326,
+        0.19575116796504932
       ]
     ]
   }

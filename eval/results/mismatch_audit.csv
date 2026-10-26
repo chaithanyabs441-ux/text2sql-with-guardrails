@@ -1,0 +1,573 @@
+question_id,strategy,question,gold_sql,generated_sql,gold_first_rows,generated_first_rows,my_label
+g009,schema_glossary,What is the total net revenue from active enterprise customers in Europe?,"SELECT
+  COALESCE(SUM(o.net_revenue), 0) AS total_net_revenue
+FROM orders AS o
+JOIN customers AS c
+  ON c.id = o.customer_id
+JOIN regions AS r
+  ON r.id = c.region_id
+WHERE
+  c.is_deleted = FALSE
+  AND LOWER(c.segment) = LOWER('enterprise')
+  AND LOWER(r.name) = LOWER('Europe')
+LIMIT 1000","SELECT
+  SUM(o.net_revenue) AS total_net_revenue
+FROM orders AS o
+JOIN customers AS c
+  ON o.customer_id = c.id
+  AND c.is_deleted = FALSE
+  AND LOWER(c.segment) = LOWER('enterprise')
+JOIN regions AS r
+  ON c.region_id = r.id AND LOWER(r.name) = LOWER('Europe')
+LIMIT 1000","[{""total_net_revenue"": 0.0}]","[{""total_net_revenue"": null}]",
+g009,schema_glossary_selfcorrect,What is the total net revenue from active enterprise customers in Europe?,"SELECT
+  COALESCE(SUM(o.net_revenue), 0) AS total_net_revenue
+FROM orders AS o
+JOIN customers AS c
+  ON c.id = o.customer_id
+JOIN regions AS r
+  ON r.id = c.region_id
+WHERE
+  c.is_deleted = FALSE
+  AND LOWER(c.segment) = LOWER('enterprise')
+  AND LOWER(r.name) = LOWER('Europe')
+LIMIT 1000","SELECT
+  SUM(o.net_revenue) AS total_net_revenue
+FROM orders AS o
+JOIN customers AS c
+  ON o.customer_id = c.id
+  AND c.is_deleted = FALSE
+  AND LOWER(c.segment) = LOWER('enterprise')
+JOIN regions AS r
+  ON c.region_id = r.id AND LOWER(r.name) = LOWER('Europe')
+LIMIT 1000","[{""total_net_revenue"": 0.0}]","[{""total_net_revenue"": null}]",
+g013,zero_shot,What is the average quantity per order item for each product?,"SELECT
+  p.name,
+  AVG(oi.quantity) AS average_quantity
+FROM order_items AS oi
+JOIN products AS p
+  ON p.id = oi.product_id
+GROUP BY
+  p.name
+ORDER BY
+  p.name
+LIMIT 1000","SELECT
+  p.id AS product_id,
+  p.name AS product_name,
+  CAST(AVG(oi.quantity) AS DECIMAL(10, 2)) AS avg_quantity_per_order_item
+FROM order_items AS oi
+JOIN products AS p
+  ON oi.product_id = p.id
+GROUP BY
+  p.id,
+  p.name
+ORDER BY
+  p.id
+LIMIT 1000","[{""name"": ""Product 1"", ""average_quantity"": 3.438}, {""name"": ""Product 10"", ""average_quantity"": 3.544}, {""name"": ""Product 100"", ""average_quantity"": 3.5073333333333334}, {""name"": ""Product 11"", ""average_quantity"": 3.4753333333333334}, {""name"": ""Product 13"", ""average_quantity"": 3.4913333333333334}]","[{""product_id"": 1, ""product_name"": ""Product 1"", ""avg_quantity_per_order_item"": 3.44}, {""product_id"": 3, ""product_name"": ""Product 3"", ""avg_quantity_per_order_item"": 3.49}, {""product_id"": 4, ""product_name"": ""Product 4"", ""avg_quantity_per_order_item"": 3.47}, {""product_id"": 5, ""product_name"": ""Product 5"", ""avg_quantity_per_order_item"": 3.49}, {""product_id"": 6, ""product_name"": ""Product 6"", ""avg_quantity_per_order_item"": 3.51}]",
+g013,schema_glossary,What is the average quantity per order item for each product?,"SELECT
+  p.name,
+  AVG(oi.quantity) AS average_quantity
+FROM order_items AS oi
+JOIN products AS p
+  ON p.id = oi.product_id
+GROUP BY
+  p.name
+ORDER BY
+  p.name
+LIMIT 1000","SELECT
+  p.id AS product_id,
+  p.name AS product_name,
+  AVG(oi.quantity) AS avg_quantity_per_order_item
+FROM products AS p
+LEFT JOIN order_items AS oi
+  ON oi.product_id = p.id
+WHERE
+  p.is_active = TRUE
+GROUP BY
+  p.id,
+  p.name
+ORDER BY
+  p.id
+LIMIT 1000","[{""name"": ""Product 1"", ""average_quantity"": 3.438}, {""name"": ""Product 10"", ""average_quantity"": 3.544}, {""name"": ""Product 100"", ""average_quantity"": 3.5073333333333334}, {""name"": ""Product 11"", ""average_quantity"": 3.4753333333333334}, {""name"": ""Product 13"", ""average_quantity"": 3.4913333333333334}]","[{""product_id"": 1, ""product_name"": ""Product 1"", ""avg_quantity_per_order_item"": 3.438}, {""product_id"": 2, ""product_name"": ""Product 2"", ""avg_quantity_per_order_item"": NaN}, {""product_id"": 3, ""product_name"": ""Product 3"", ""avg_quantity_per_order_item"": 3.486666666666667}, {""product_id"": 4, ""product_name"": ""Product 4"", ""avg_quantity_per_order_item"": 3.4726666666666666}, {""product_id"": 5, ""product_name"": ""Product 5"", ""avg_quantity_per_order_item"": 3.4913333333333334}]",
+g013,schema_glossary_selfcorrect,What is the average quantity per order item for each product?,"SELECT
+  p.name,
+  AVG(oi.quantity) AS average_quantity
+FROM order_items AS oi
+JOIN products AS p
+  ON p.id = oi.product_id
+GROUP BY
+  p.name
+ORDER BY
+  p.name
+LIMIT 1000","SELECT
+  p.id AS product_id,
+  p.name AS product_name,
+  AVG(oi.quantity) AS avg_quantity_per_order_item
+FROM products AS p
+LEFT JOIN order_items AS oi
+  ON oi.product_id = p.id
+WHERE
+  p.is_active = TRUE
+GROUP BY
+  p.id,
+  p.name
+ORDER BY
+  p.id
+LIMIT 1000","[{""name"": ""Product 1"", ""average_quantity"": 3.438}, {""name"": ""Product 10"", ""average_quantity"": 3.544}, {""name"": ""Product 100"", ""average_quantity"": 3.5073333333333334}, {""name"": ""Product 11"", ""average_quantity"": 3.4753333333333334}, {""name"": ""Product 13"", ""average_quantity"": 3.4913333333333334}]","[{""product_id"": 1, ""product_name"": ""Product 1"", ""avg_quantity_per_order_item"": 3.438}, {""product_id"": 2, ""product_name"": ""Product 2"", ""avg_quantity_per_order_item"": NaN}, {""product_id"": 3, ""product_name"": ""Product 3"", ""avg_quantity_per_order_item"": 3.486666666666667}, {""product_id"": 4, ""product_name"": ""Product 4"", ""avg_quantity_per_order_item"": 3.4726666666666666}, {""product_id"": 5, ""product_name"": ""Product 5"", ""avg_quantity_per_order_item"": 3.4913333333333334}]",
+g018,zero_shot,How many orders has each employee handled?,"SELECT
+  CONCAT(e.first_name, ' ', e.last_name) AS employee,
+  COUNT(o.id) AS order_count
+FROM employees AS e
+LEFT JOIN orders AS o
+  ON o.employee_id = e.id
+GROUP BY
+  e.id,
+  e.first_name,
+  e.last_name
+ORDER BY
+  employee
+LIMIT 1000","SELECT
+  e.id AS employee_id,
+  e.first_name,
+  e.last_name,
+  COUNT(o.id) AS order_count
+FROM employees AS e
+LEFT JOIN orders AS o
+  ON o.employee_id = e.id
+GROUP BY
+  e.id,
+  e.first_name,
+  e.last_name
+ORDER BY
+  e.id
+LIMIT 1000","[{""employee"": ""First1 Last1"", ""order_count"": 1000}, {""employee"": ""First10 Last10"", ""order_count"": 1000}, {""employee"": ""First11 Last11"", ""order_count"": 1000}, {""employee"": ""First12 Last12"", ""order_count"": 1000}, {""employee"": ""First13 Last13"", ""order_count"": 1000}]","[{""employee_id"": 1, ""first_name"": ""First1"", ""last_name"": ""Last1"", ""order_count"": 1000}, {""employee_id"": 2, ""first_name"": ""First2"", ""last_name"": ""Last2"", ""order_count"": 1000}, {""employee_id"": 3, ""first_name"": ""First3"", ""last_name"": ""Last3"", ""order_count"": 1000}, {""employee_id"": 4, ""first_name"": ""First4"", ""last_name"": ""Last4"", ""order_count"": 1000}, {""employee_id"": 5, ""first_name"": ""First5"", ""last_name"": ""Last5"", ""order_count"": 1000}]",
+g021,zero_shot,What is the total amount of successful payments by payment method?,"SELECT
+  payment_method,
+  SUM(amount) AS successful_payment_amount
+FROM payments
+WHERE
+  status = 'success'
+GROUP BY
+  payment_method
+ORDER BY
+  payment_method
+LIMIT 1000","SELECT
+  payment_method,
+  SUM(amount) AS total_amount
+FROM payments
+WHERE
+  LOWER(status) = 'successful'
+GROUP BY
+  payment_method
+LIMIT 1000","[{""payment_method"": ""bank_transfer"", ""successful_payment_amount"": 29407019.72}, {""payment_method"": ""card"", ""successful_payment_amount"": 28937980.03}, {""payment_method"": ""digital_wallet"", ""successful_payment_amount"": 29405208.34}]",[],
+g021,schema_glossary,What is the total amount of successful payments by payment method?,"SELECT
+  payment_method,
+  SUM(amount) AS successful_payment_amount
+FROM payments
+WHERE
+  status = 'success'
+GROUP BY
+  payment_method
+ORDER BY
+  payment_method
+LIMIT 1000","SELECT
+  payment_method,
+  SUM(amount) AS total_amount
+FROM payments
+WHERE
+  LOWER(status) IN ('completed', 'processed', 'successful')
+GROUP BY
+  payment_method
+ORDER BY
+  total_amount DESC
+LIMIT 1000","[{""payment_method"": ""bank_transfer"", ""successful_payment_amount"": 29407019.72}, {""payment_method"": ""card"", ""successful_payment_amount"": 28937980.03}, {""payment_method"": ""digital_wallet"", ""successful_payment_amount"": 29405208.34}]",[],
+g021,schema_glossary_selfcorrect,What is the total amount of successful payments by payment method?,"SELECT
+  payment_method,
+  SUM(amount) AS successful_payment_amount
+FROM payments
+WHERE
+  status = 'success'
+GROUP BY
+  payment_method
+ORDER BY
+  payment_method
+LIMIT 1000","SELECT
+  payment_method,
+  SUM(amount) AS total_amount
+FROM payments
+WHERE
+  LOWER(status) IN ('completed', 'processed', 'successful')
+GROUP BY
+  payment_method
+ORDER BY
+  total_amount DESC
+LIMIT 1000","[{""payment_method"": ""bank_transfer"", ""successful_payment_amount"": 29407019.72}, {""payment_method"": ""card"", ""successful_payment_amount"": 28937980.03}, {""payment_method"": ""digital_wallet"", ""successful_payment_amount"": 29405208.34}]",[],
+g025,zero_shot,How many employees were hired in each calendar year?,"SELECT
+  DATE_TRUNC('YEAR', hire_date) AS hire_year,
+  COUNT(*) AS employee_count
+FROM employees
+WHERE
+  hire_date IS NOT NULL
+GROUP BY
+  hire_year
+ORDER BY
+  hire_year
+LIMIT 1000","SELECT
+  EXTRACT(YEAR FROM hire_date) AS hire_year,
+  COUNT(*) AS employee_count
+FROM employees
+GROUP BY
+  hire_year
+ORDER BY
+  hire_year
+LIMIT 1000","[{""hire_year"": ""2025-01-01 00:00:00+00:00"", ""employee_count"": 21}, {""hire_year"": ""2026-01-01 00:00:00+00:00"", ""employee_count"": 29}]","[{""hire_year"": 2025.0, ""employee_count"": 21}, {""hire_year"": 2026.0, ""employee_count"": 29}]",
+g025,schema_glossary,How many employees were hired in each calendar year?,"SELECT
+  DATE_TRUNC('YEAR', hire_date) AS hire_year,
+  COUNT(*) AS employee_count
+FROM employees
+WHERE
+  hire_date IS NOT NULL
+GROUP BY
+  hire_year
+ORDER BY
+  hire_year
+LIMIT 1000","SELECT
+  EXTRACT(YEAR FROM hire_date) AS hire_year,
+  COUNT(*) AS employee_count
+FROM employees
+GROUP BY
+  hire_year
+ORDER BY
+  hire_year
+LIMIT 1000","[{""hire_year"": ""2025-01-01 00:00:00+00:00"", ""employee_count"": 21}, {""hire_year"": ""2026-01-01 00:00:00+00:00"", ""employee_count"": 29}]","[{""hire_year"": 2025.0, ""employee_count"": 21}, {""hire_year"": 2026.0, ""employee_count"": 29}]",
+g025,schema_glossary_selfcorrect,How many employees were hired in each calendar year?,"SELECT
+  DATE_TRUNC('YEAR', hire_date) AS hire_year,
+  COUNT(*) AS employee_count
+FROM employees
+WHERE
+  hire_date IS NOT NULL
+GROUP BY
+  hire_year
+ORDER BY
+  hire_year
+LIMIT 1000","SELECT
+  EXTRACT(YEAR FROM hire_date) AS hire_year,
+  COUNT(*) AS employee_count
+FROM employees
+GROUP BY
+  hire_year
+ORDER BY
+  hire_year
+LIMIT 1000","[{""hire_year"": ""2025-01-01 00:00:00+00:00"", ""employee_count"": 21}, {""hire_year"": ""2026-01-01 00:00:00+00:00"", ""employee_count"": 29}]","[{""hire_year"": 2025.0, ""employee_count"": 21}, {""hire_year"": 2026.0, ""employee_count"": 29}]",
+g027,zero_shot,How many orders have no successful payment?,"SELECT
+  COUNT(*) AS orders_without_successful_payment
+FROM orders AS o
+WHERE
+  NOT EXISTS(
+    SELECT
+      1
+    FROM payments AS p
+    WHERE
+      p.order_id = o.id AND p.status = 'success'
+    LIMIT 1000
+  )
+LIMIT 1000","SELECT
+  COUNT(o.id) AS orders_without_successful_payment
+FROM orders AS o
+LEFT JOIN payments AS p
+  ON p.order_id = o.id AND LOWER(p.status) = 'successful'
+WHERE
+  p.id IS NULL
+LIMIT 1000","[{""orders_without_successful_payment"": 12500}]","[{""orders_without_successful_payment"": 50000}]",
+g027,schema_glossary,How many orders have no successful payment?,"SELECT
+  COUNT(*) AS orders_without_successful_payment
+FROM orders AS o
+WHERE
+  NOT EXISTS(
+    SELECT
+      1
+    FROM payments AS p
+    WHERE
+      p.order_id = o.id AND p.status = 'success'
+    LIMIT 1000
+  )
+LIMIT 1000","SELECT
+  COUNT(*) AS orders_without_successful_payment
+FROM orders AS o
+LEFT JOIN payments AS p
+  ON p.order_id = o.id AND LOWER(p.status) = LOWER('completed')
+WHERE
+  p.id IS NULL
+LIMIT 1000","[{""orders_without_successful_payment"": 12500}]","[{""orders_without_successful_payment"": 50000}]",
+g027,schema_glossary_selfcorrect,How many orders have no successful payment?,"SELECT
+  COUNT(*) AS orders_without_successful_payment
+FROM orders AS o
+WHERE
+  NOT EXISTS(
+    SELECT
+      1
+    FROM payments AS p
+    WHERE
+      p.order_id = o.id AND p.status = 'success'
+    LIMIT 1000
+  )
+LIMIT 1000","SELECT
+  COUNT(*) AS orders_without_successful_payment
+FROM orders AS o
+LEFT JOIN payments AS p
+  ON p.order_id = o.id AND LOWER(p.status) = LOWER('completed')
+WHERE
+  p.id IS NULL
+LIMIT 1000","[{""orders_without_successful_payment"": 12500}]","[{""orders_without_successful_payment"": 50000}]",
+g035,zero_shot,How many active customers were created in each calendar year?,"SELECT
+  DATE_TRUNC('YEAR', created_at) AS created_year,
+  COUNT(*) AS customer_count
+FROM customers
+WHERE
+  is_deleted = FALSE
+GROUP BY
+  created_year
+ORDER BY
+  created_year
+LIMIT 1000","SELECT
+  CAST(EXTRACT(YEAR FROM created_at) AS INT) AS year,
+  COUNT(*) AS active_customers
+FROM customers
+WHERE
+  is_deleted = FALSE
+GROUP BY
+  EXTRACT(YEAR FROM created_at)
+ORDER BY
+  year
+LIMIT 1000","[{""created_year"": ""2026-01-01 00:00:00"", ""customer_count"": 9800}]","[{""year"": 2026, ""active_customers"": 9800}]",
+g035,schema_glossary,How many active customers were created in each calendar year?,"SELECT
+  DATE_TRUNC('YEAR', created_at) AS created_year,
+  COUNT(*) AS customer_count
+FROM customers
+WHERE
+  is_deleted = FALSE
+GROUP BY
+  created_year
+ORDER BY
+  created_year
+LIMIT 1000","SELECT
+  EXTRACT(YEAR FROM created_at) AS year,
+  COUNT(*) AS active_customer_count
+FROM customers
+WHERE
+  is_deleted = FALSE
+GROUP BY
+  year
+ORDER BY
+  year
+LIMIT 1000","[{""created_year"": ""2026-01-01 00:00:00"", ""customer_count"": 9800}]","[{""year"": 2026.0, ""active_customer_count"": 9800}]",
+g035,schema_glossary_selfcorrect,How many active customers were created in each calendar year?,"SELECT
+  DATE_TRUNC('YEAR', created_at) AS created_year,
+  COUNT(*) AS customer_count
+FROM customers
+WHERE
+  is_deleted = FALSE
+GROUP BY
+  created_year
+ORDER BY
+  created_year
+LIMIT 1000","SELECT
+  EXTRACT(YEAR FROM created_at) AS year,
+  COUNT(*) AS active_customer_count
+FROM customers
+WHERE
+  is_deleted = FALSE
+GROUP BY
+  year
+ORDER BY
+  year
+LIMIT 1000","[{""created_year"": ""2026-01-01 00:00:00"", ""customer_count"": 9800}]","[{""year"": 2026.0, ""active_customer_count"": 9800}]",
+g036,zero_shot,How many orders are there in each status and region for active customers?,"SELECT
+  r.name AS region,
+  o.status,
+  COUNT(o.id) AS order_count
+FROM orders AS o
+JOIN customers AS c
+  ON c.id = o.customer_id
+JOIN regions AS r
+  ON r.id = c.region_id
+WHERE
+  c.is_deleted = FALSE
+GROUP BY
+  r.name,
+  o.status
+ORDER BY
+  r.name,
+  o.status
+LIMIT 1000","SELECT
+  c.region_id,
+  o.status,
+  COUNT(o.id) AS order_count
+FROM orders AS o
+JOIN customers AS c
+  ON o.customer_id = c.id AND c.is_deleted = FALSE
+GROUP BY
+  c.region_id,
+  o.status
+ORDER BY
+  c.region_id,
+  o.status
+LIMIT 1000","[{""region"": ""Asia Pacific"", ""status"": ""cancelled"", ""order_count"": 1670}, {""region"": ""Asia Pacific"", ""status"": ""completed"", ""order_count"": 11330}, {""region"": ""Asia Pacific"", ""status"": ""pending"", ""order_count"": 1665}, {""region"": ""Asia Pacific"", ""status"": ""returned"", ""order_count"": 1665}, {""region"": ""Europe"", ""status"": ""cancelled"", ""order_count"": 1665}]","[{""region_id"": 1, ""status"": ""cancelled"", ""order_count"": 1665}, {""region_id"": 1, ""status"": ""completed"", ""order_count"": 11335}, {""region_id"": 1, ""status"": ""pending"", ""order_count"": 1665}, {""region_id"": 1, ""status"": ""returned"", ""order_count"": 1670}, {""region_id"": 2, ""status"": ""cancelled"", ""order_count"": 1665}]",
+g039,zero_shot,Which employee handled the most orders in 2025?,"SELECT
+  CONCAT(e.first_name, ' ', e.last_name) AS employee,
+  COUNT(o.id) AS order_count
+FROM employees AS e
+JOIN orders AS o
+  ON o.employee_id = e.id
+WHERE
+  o.order_date >= CAST('2025-01-01' AS DATE)
+  AND o.order_date < CAST('2026-01-01' AS DATE)
+GROUP BY
+  e.id,
+  e.first_name,
+  e.last_name
+ORDER BY
+  order_count DESC,
+  employee
+LIMIT 1","SELECT
+  e.id AS employee_id,
+  e.first_name,
+  e.last_name,
+  COUNT(o.id) AS order_count
+FROM employees AS e
+LEFT JOIN orders AS o
+  ON o.employee_id = e.id AND EXTRACT(YEAR FROM o.order_date) = 2025
+WHERE
+  o.id IS NOT NULL
+GROUP BY
+  e.id,
+  e.first_name,
+  e.last_name
+ORDER BY
+  order_count DESC
+LIMIT 1","[{""employee"": ""First41 Last41"", ""order_count"": 176}]","[{""employee_id"": 41, ""first_name"": ""First41"", ""last_name"": ""Last41"", ""order_count"": 176}]",
+g039,schema_glossary,Which employee handled the most orders in 2025?,"SELECT
+  CONCAT(e.first_name, ' ', e.last_name) AS employee,
+  COUNT(o.id) AS order_count
+FROM employees AS e
+JOIN orders AS o
+  ON o.employee_id = e.id
+WHERE
+  o.order_date >= CAST('2025-01-01' AS DATE)
+  AND o.order_date < CAST('2026-01-01' AS DATE)
+GROUP BY
+  e.id,
+  e.first_name,
+  e.last_name
+ORDER BY
+  order_count DESC,
+  employee
+LIMIT 1","SELECT
+  e.id AS employee_id,
+  e.first_name,
+  e.last_name,
+  COUNT(o.id) AS order_count
+FROM employees AS e
+JOIN orders AS o
+  ON o.employee_id = e.id
+WHERE
+  o.order_date >= CAST('2025-01-01' AS DATE)
+  AND o.order_date < CAST('2026-01-01' AS DATE)
+GROUP BY
+  e.id,
+  e.first_name,
+  e.last_name
+ORDER BY
+  order_count DESC
+LIMIT 1","[{""employee"": ""First41 Last41"", ""order_count"": 176}]","[{""employee_id"": 42, ""first_name"": ""First42"", ""last_name"": ""Last42"", ""order_count"": 176}]",
+g039,schema_glossary_selfcorrect,Which employee handled the most orders in 2025?,"SELECT
+  CONCAT(e.first_name, ' ', e.last_name) AS employee,
+  COUNT(o.id) AS order_count
+FROM employees AS e
+JOIN orders AS o
+  ON o.employee_id = e.id
+WHERE
+  o.order_date >= CAST('2025-01-01' AS DATE)
+  AND o.order_date < CAST('2026-01-01' AS DATE)
+GROUP BY
+  e.id,
+  e.first_name,
+  e.last_name
+ORDER BY
+  order_count DESC,
+  employee
+LIMIT 1","SELECT
+  e.id AS employee_id,
+  e.first_name,
+  e.last_name,
+  COUNT(o.id) AS order_count
+FROM employees AS e
+JOIN orders AS o
+  ON o.employee_id = e.id
+WHERE
+  o.order_date >= CAST('2025-01-01' AS DATE)
+  AND o.order_date < CAST('2026-01-01' AS DATE)
+GROUP BY
+  e.id,
+  e.first_name,
+  e.last_name
+ORDER BY
+  order_count DESC
+LIMIT 1","[{""employee"": ""First41 Last41"", ""order_count"": 176}]","[{""employee_id"": 42, ""first_name"": ""First42"", ""last_name"": ""Last42"", ""order_count"": 176}]",
+g041,zero_shot,How many returns were recorded in each year?,"SELECT
+  DATE_TRUNC('YEAR', return_date) AS return_year,
+  COUNT(*) AS return_count
+FROM returns
+WHERE
+  return_date IS NOT NULL
+GROUP BY
+  return_year
+ORDER BY
+  return_year
+LIMIT 1000","SELECT
+  EXTRACT(YEAR FROM return_date) AS year,
+  COUNT(*) AS return_count
+FROM returns
+GROUP BY
+  EXTRACT(YEAR FROM return_date)
+ORDER BY
+  year
+LIMIT 1000","[{""return_year"": ""2021-01-01 00:00:00+00:00"", ""return_count"": 228}, {""return_year"": ""2022-01-01 00:00:00+00:00"", ""return_count"": 264}, {""return_year"": ""2023-01-01 00:00:00+00:00"", ""return_count"": 261}, {""return_year"": ""2024-01-01 00:00:00+00:00"", ""return_count"": 264}, {""return_year"": ""2025-01-01 00:00:00+00:00"", ""return_count"": 264}]","[{""year"": 2021.0, ""return_count"": 228}, {""year"": 2022.0, ""return_count"": 264}, {""year"": 2023.0, ""return_count"": 261}, {""year"": 2024.0, ""return_count"": 264}, {""year"": 2025.0, ""return_count"": 264}]",
+g041,schema_glossary,How many returns were recorded in each year?,"SELECT
+  DATE_TRUNC('YEAR', return_date) AS return_year,
+  COUNT(*) AS return_count
+FROM returns
+WHERE
+  return_date IS NOT NULL
+GROUP BY
+  return_year
+ORDER BY
+  return_year
+LIMIT 1000","SELECT
+  EXTRACT(YEAR FROM return_date) AS year,
+  COUNT(*) AS return_count
+FROM returns
+GROUP BY
+  year
+ORDER BY
+  year
+LIMIT 1000","[{""return_year"": ""2021-01-01 00:00:00+00:00"", ""return_count"": 228}, {""return_year"": ""2022-01-01 00:00:00+00:00"", ""return_count"": 264}, {""return_year"": ""2023-01-01 00:00:00+00:00"", ""return_count"": 261}, {""return_year"": ""2024-01-01 00:00:00+00:00"", ""return_count"": 264}, {""return_year"": ""2025-01-01 00:00:00+00:00"", ""return_count"": 264}]","[{""year"": 2021.0, ""return_count"": 228}, {""year"": 2022.0, ""return_count"": 264}, {""year"": 2023.0, ""return_count"": 261}, {""year"": 2024.0, ""return_count"": 264}, {""year"": 2025.0, ""return_count"": 264}]",
+g041,schema_glossary_selfcorrect,How many returns were recorded in each year?,"SELECT
+  DATE_TRUNC('YEAR', return_date) AS return_year,
+  COUNT(*) AS return_count
+FROM returns
+WHERE
+  return_date IS NOT NULL
+GROUP BY
+  return_year
+ORDER BY
+  return_year
+LIMIT 1000","SELECT
+  EXTRACT(YEAR FROM return_date) AS year,
+  COUNT(*) AS return_count
+FROM returns
+GROUP BY
+  year
+ORDER BY
+  year
+LIMIT 1000","[{""return_year"": ""2021-01-01 00:00:00+00:00"", ""return_count"": 228}, {""return_year"": ""2022-01-01 00:00:00+00:00"", ""return_count"": 264}, {""return_year"": ""2023-01-01 00:00:00+00:00"", ""return_count"": 261}, {""return_year"": ""2024-01-01 00:00:00+00:00"", ""return_count"": 264}, {""return_year"": ""2025-01-01 00:00:00+00:00"", ""return_count"": 264}]","[{""year"": 2021.0, ""return_count"": 228}, {""year"": 2022.0, ""return_count"": 264}, {""year"": 2023.0, ""return_count"": 261}, {""year"": 2024.0, ""return_count"": 264}, {""year"": 2025.0, ""return_count"": 264}]",

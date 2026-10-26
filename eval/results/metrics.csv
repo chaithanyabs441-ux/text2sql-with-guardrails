@@ -1,4 +1,4 @@
-strategy,total_questions,gold_sql_questions,valid_sql_count,valid_sql_rate,comparable_pairs,correct_result_pairs,execution_accuracy,average_generation_latency_ms,prompt_tokens,completion_tokens,estimated_token_cost_usd
-zero_shot,60,53,55,0.9166666666666666,50,23,0.46,1528.806,13886,10626,
-schema_glossary,60,53,54,0.9,51,29,0.5686274509803921,3155.3,23527,9313,
-schema_glossary_selfcorrect,60,53,54,0.9,51,29,0.5686274509803921,54.844,0,0,
+strategy,total_questions,gold_sql_questions,valid_sql_count,valid_sql_rate,comparable_pairs,correct_result_pairs,execution_accuracy_all_gold,all_gold_ci95_lower,all_gold_ci95_upper,execution_accuracy_comparable,comparable_ci95_lower,comparable_ci95_upper,all_gold_delta_vs_schema_glossary,comparable_delta_vs_schema_glossary
+zero_shot,78,55,57,0.7307692307692307,50,35,0.6363636363636364,0.49563145491198635,0.761861620786517,0.7,0.5539176743388212,0.8213821543358535,,
+schema_glossary,78,55,55,0.7051282051282052,50,38,0.6909090909090909,0.5518702546562253,0.8085535885663784,0.76,0.6183092518959612,0.869390083802543,,
+schema_glossary_selfcorrect,78,55,55,0.7051282051282052,50,38,0.6909090909090909,0.5518702546562253,0.8085535885663784,0.76,0.6183092518959612,0.869390083802543,0.0,0.0

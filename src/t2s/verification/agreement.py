@@ -7,7 +7,7 @@ from typing import Any
 from t2s.generation.generator import SQLGenerator
 from t2s.guardrails.policy import SQLPolicyEngine
 from t2s.sandbox.executor import ExecutionSandbox
-from t2s.verification.result_comparison import result_fingerprint
+from t2s.verification.result_comparison import result_sets_equal
 
 DEFAULT_TEMPERATURES = (0.0, 0.3, 0.7)
 
@@ -65,7 +65,8 @@ class MultiCandidateAgreement:
     ) -> AgreementResult:
         """Generate, policy-check, and sandbox-execute every candidate."""
         outcomes: list[CandidateOutcome] = []
-        fingerprints: dict[tuple[int, tuple[str, ...]], list[int]] = {}
+        cluster_frames = []
+        cluster_members: list[list[int]] = []
 
         for index, temperature in enumerate(self.temperatures):
             try:
@@ -103,8 +104,20 @@ class MultiCandidateAgreement:
                 )
                 continue
 
-            fingerprint = result_fingerprint(frame)
-            fingerprints.setdefault(fingerprint, []).append(index)
+            cluster_id = next(
+                (
+                    candidate_cluster
+                    for candidate_cluster, representative in enumerate(cluster_frames)
+                    if result_sets_equal(representative, frame)
+                    and result_sets_equal(frame, representative)
+                ),
+                None,
+            )
+            if cluster_id is None:
+                cluster_id = len(cluster_frames)
+                cluster_frames.append(frame)
+                cluster_members.append([])
+            cluster_members[cluster_id].append(index)
             outcomes.append(
                 CandidateOutcome(
                     temperature,
@@ -115,10 +128,9 @@ class MultiCandidateAgreement:
                 )
             )
 
-        ordered_clusters = sorted(fingerprints.values(), key=lambda members: members[0])
         cluster_by_candidate = {
             index: cluster_id
-            for cluster_id, members in enumerate(ordered_clusters, start=1)
+            for cluster_id, members in enumerate(cluster_members, start=1)
             for index in members
         }
         outcomes = [
@@ -127,7 +139,7 @@ class MultiCandidateAgreement:
             else outcome
             for index, outcome in enumerate(outcomes)
         ]
-        dominant_size = max((len(members) for members in ordered_clusters), default=0)
+        dominant_size = max((len(members) for members in cluster_members), default=0)
         return AgreementResult(
             candidate_count=len(self.temperatures),
             executed_count=sum(outcome.status == "executed" for outcome in outcomes),

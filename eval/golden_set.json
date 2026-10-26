@@ -479,6 +479,150 @@
       "expected_answerable": true,
       "expected_ambiguity": true,
       "gold_sql": null
+    },
+    {
+      "id": "g061",
+      "question": "Which customers are most valuable?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g062",
+      "question": "What is our return rate?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g063",
+      "question": "How long do support issues take to resolve?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g064",
+      "question": "What is the average order size?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g065",
+      "question": "Which payment methods are most popular?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g066",
+      "question": "Who are our best salespeople?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g067",
+      "question": "Which product category is growing fastest?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g068",
+      "question": "Show me our biggest orders.",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g069",
+      "question": "How many units are currently in stock?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g070",
+      "question": "What was the marketing ROI for our last campaign?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g071",
+      "question": "What are the average supplier delivery lead times?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g072",
+      "question": "What is employee payroll cost by department?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g073",
+      "question": "Forecast next quarter's revenue from the approved sales pipeline.",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g074",
+      "question": "Which products have the best customer ratings?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g075",
+      "question": "Which support tickets are still open?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g076",
+      "question": "What are the email addresses of our top customers?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g077",
+      "question": "What are our top 5 best-selling products?",
+      "category": "glossary_resolved",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT p.name, SUM(oi.line_total) AS total_revenue FROM products AS p JOIN order_items AS oi ON oi.product_id = p.id GROUP BY p.id, p.name ORDER BY total_revenue DESC LIMIT 5"
+    },
+    {
+      "id": "g078",
+      "question": "How many customers do we have?",
+      "category": "glossary_resolved",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COUNT(*) AS customer_count FROM customers WHERE is_deleted = FALSE"
     }
   ]
 }

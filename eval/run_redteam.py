@@ -13,7 +13,10 @@ from typing import Any
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
+
+from eval.classify_redteam import classify_record, summarize_outcomes  # noqa: E402
 
 from t2s.generation.generator import SQLGenerator  # noqa: E402
 from t2s.guardrails.exceptions import UnsafeQueryError  # noqa: E402
@@ -24,14 +27,19 @@ STRATEGIES = ("zero_shot", "schema_glossary", "schema_glossary_selfcorrect")
 REPORT_FIELDS = ("scope", "category_or_layer", "attempted", "scorable", "blocked", "rate")
 
 
-def load_cases(path: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def load_cases(
+    path: Path, *, minimum_adversarial: int = 60
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Load the adversarial and benign prompt lists."""
     payload = json.loads(path.read_text(encoding="utf-8"))
     adversarial, benign = payload.get("adversarial"), payload.get("benign")
     if not isinstance(adversarial, list) or not isinstance(benign, list):
         raise ValueError("Red-team set needs 'adversarial' and 'benign' arrays")
-    if len(adversarial) < 60:
-        raise ValueError("Red-team set must contain at least 60 adversarial prompts")
+    if len(adversarial) < minimum_adversarial:
+        raise ValueError(
+            f"Red-team set must contain at least {minimum_adversarial} "
+            "adversarial prompts"
+        )
     return adversarial, benign
 
 
@@ -183,16 +191,26 @@ class RedTeamRunner:
 
 
 def write_reports(output_dir: Path, records: list[dict[str, Any]]) -> tuple[Path, Path]:
-    """Write per-prompt JSONL and aggregate block-rate CSV."""
+    """Write raw decisions, block rates, and classified outcome intervals."""
     output_dir.mkdir(parents=True, exist_ok=True)
     raw_path, csv_path = output_dir / "redteam_raw.jsonl", output_dir / "redteam_metrics.csv"
+    outcome_metrics_path = output_dir / "redteam_outcome_metrics.csv"
+    classified = [classify_record(record) for record in records]
     with raw_path.open("w", encoding="utf-8", newline="\n") as stream:
-        for record in records:
+        for record in classified:
             stream.write(json.dumps(record, ensure_ascii=False) + "\n")
     with csv_path.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=REPORT_FIELDS)
         writer.writeheader()
         writer.writerows(summarize(records))
+    outcome_fields = [
+        "scope", "category", "outcome", "attempted", "scorable", "count",
+        "rate", "ci95_lower", "ci95_upper",
+    ]
+    with outcome_metrics_path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=outcome_fields)
+        writer.writeheader()
+        writer.writerows(summarize_outcomes(classified))
     return raw_path, csv_path
 
 
@@ -205,15 +223,28 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=PROJECT_ROOT / "eval" / "results")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--strategy", choices=STRATEGIES, default="schema_glossary")
+    parser.add_argument(
+        "--allow-small-set", action="store_true",
+        help="Allow fewer than 60 adversarial prompts for exploratory runs.",
+    )
     args = parser.parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
-    adversarial, benign = load_cases(args.redteam_set)
+    minimum_adversarial = 1 if args.allow_small_set else 60
+    adversarial, benign = load_cases(
+        args.redteam_set, minimum_adversarial=minimum_adversarial
+    )
+    if args.allow_small_set and len(adversarial) < 60:
+        print(
+            f"Warning: exploratory run with {len(adversarial)} adversarial prompts; "
+            "outcome estimates will have wide uncertainty."
+        )
     records = RedTeamRunner(strategy=args.strategy).run(adversarial, benign)
     raw_path, csv_path = write_reports(args.output_dir, records)
     print(f"Evaluated {len(adversarial)} adversarial and {len(benign)} benign prompts.")
     print(f"Raw results: {raw_path}")
     print(f"Metrics CSV: {csv_path}")
+    print(f"Outcome metrics CSV: {args.output_dir / 'redteam_outcome_metrics.csv'}")
     print(f"Errors/inconclusive cases: {sum(row['status'] == 'error' for row in records)}")
     return 0
 

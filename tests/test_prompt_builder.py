@@ -61,7 +61,7 @@ def test_selfcorrect_prompt_includes_database_error_as_untrusted_data(schema):
         database_error="column typo does not exist",
     )
 
-    assert "PREVIOUS DATABASE ERROR" in prompt
+    assert "PREVIOUS ATTEMPT FEEDBACK" in prompt
     assert "untrusted diagnostic" in prompt
     assert "column typo does not exist" in prompt
 

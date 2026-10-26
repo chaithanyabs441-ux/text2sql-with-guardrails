@@ -493,24 +493,37 @@ class SQLPolicyEngine:
                 )
 
     def _cap_query_limits(self, ast: exp.Expression) -> None:
-        """Add or clamp LIMIT on every SELECT and UNION in the query tree."""
+        """Add or clamp LIMIT and OFFSET on every query in the AST."""
         query_nodes = (exp.Select, exp.Union)
         for query in ast.find_all(*query_nodes):
             limit = query.args.get("limit")
             if limit is None:
                 query.limit(self.max_rows, copy=False)
-                continue
+            else:
+                limit_value = self._literal_clause_value(limit)
+                if limit_value is None or limit_value < 0 or limit_value > self.max_rows:
+                    query.limit(self.max_rows, copy=False)
 
-            limit_expression = limit.args.get("expression")
-            if not isinstance(limit_expression, exp.Literal) or limit_expression.is_string:
-                query.limit(self.max_rows, copy=False)
-                continue
+            offset = query.args.get("offset")
+            if offset is not None:
+                offset_value = self._literal_clause_value(offset)
+                if offset_value is None or offset_value > self.max_rows:
+                    query.offset(self.max_rows, copy=False)
+                elif offset_value < 0:
+                    query.offset(0, copy=False)
 
-            try:
-                limit_value = int(limit_expression.this)
-            except (TypeError, ValueError):
-                query.limit(self.max_rows, copy=False)
-                continue
-
-            if limit_value < 0 or limit_value > self.max_rows:
-                query.limit(self.max_rows, copy=False)
+    @staticmethod
+    def _literal_clause_value(clause: exp.Expression) -> int | None:
+        """Return a non-string integer literal from a LIMIT or OFFSET node."""
+        expression = clause.args.get("expression")
+        if isinstance(expression, exp.Neg):
+            expression = expression.this
+            sign = -1
+        else:
+            sign = 1
+        if not isinstance(expression, exp.Literal) or expression.is_string:
+            return None
+        try:
+            return sign * int(expression.this)
+        except (TypeError, ValueError):
+            return None
