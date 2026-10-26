@@ -28,16 +28,21 @@ from t2s.verification.sanity_checks import ResultSanityChecker  # noqa: E402
 DEFAULT_STRATEGIES = ("zero_shot", "schema_glossary", "schema_glossary_selfcorrect")
 METRIC_FIELDS = (
     "strategy", "total_questions", "gold_sql_questions", "valid_sql_count",
-    "valid_sql_rate", "comparable_pairs", "correct_result_pairs",
+    "valid_sql_denominator", "valid_sql_rate", "comparable_pairs", "correct_result_pairs",
     "execution_accuracy_all_gold", "all_gold_ci95_lower", "all_gold_ci95_upper",
     "execution_accuracy_comparable", "comparable_ci95_lower", "comparable_ci95_upper",
+    "execution_accuracy_gold_sql", "ambiguity_flag_rate", "ambiguity_flag_count",
+    "ambiguous_question_count", "decline_rate", "decline_count",
+    "unanswerable_question_count", "false_clarification_rate",
+    "false_clarification_count", "answerable_unambiguous_count",
+    "not_run_rate_limited",
     "all_gold_delta_vs_schema_glossary", "comparable_delta_vs_schema_glossary",
 )
 CATEGORY_METRIC_FIELDS = (
     "strategy", "category", "gold_sql_questions", "correct_result_pairs",
     "execution_accuracy_all_gold", "all_gold_ci95_lower", "all_gold_ci95_upper",
     "comparable_pairs", "comparable_correct", "execution_accuracy_comparable",
-    "comparable_ci95_lower", "comparable_ci95_upper",
+    "comparable_ci95_lower", "comparable_ci95_upper", "not_run_rate_limited",
 )
 
 
@@ -72,6 +77,25 @@ def _is_connection_error(error: str | None) -> bool:
     )
 
 
+def _is_rate_limit_error(error: Any) -> bool:
+    """Recognize provider rate-limit failures without treating them as wrong answers."""
+    if not error:
+        return False
+    lowered = str(error).lower()
+    return any(marker in lowered for marker in ("ratelimiterror", "rate limit", "429"))
+
+
+def _is_rate_limited_record(record: dict[str, Any]) -> bool:
+    if record.get("run_status") == "not_run_rate_limited":
+        return True
+    if _is_rate_limit_error(record.get("generation_error")):
+        return True
+    return any(
+        _is_rate_limit_error(attempt.get("generation_error"))
+        for attempt in record.get("attempts", [])
+    )
+
+
 class EvaluationRunner:
     """Generate, execute, compare, and persist one evaluation run."""
 
@@ -93,42 +117,57 @@ class EvaluationRunner:
         self,
         questions: list[dict[str, Any]],
         strategies: tuple[str, ...] = DEFAULT_STRATEGIES,
+        previous_records: list[dict[str, Any]] | None = None,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Return detailed raw records and one aggregate metric row per strategy."""
+        """Run missing/rate-limited pairs and summarize all current question pairs."""
         raw_records: list[dict[str, Any]] = []
-        stats = {
-            strategy: {
-                "total_questions": len(questions),
-                "gold_sql_questions": 0,
-                "valid_sql_count": 0,
-                "comparable_pairs": 0,
-                "correct_result_pairs": 0,
-            }
-            for strategy in strategies
+        previous_by_key = {
+            (record.get("question_id"), record.get("strategy")): record
+            for record in (previous_records or [])
         }
+        self.resumed_rows = 0
+        self.rerun_rate_limited_rows = 0
         gold_cache: dict[str, dict[str, Any]] = {}
         for question in questions:
             question_id = question.get("id", "unknown")
             gold_sql = question.get("gold_sql")
-            gold = gold_cache.get(question_id)
-            if gold is None:
-                gold = self._run_gold(gold_sql)
-                gold_cache[question_id] = gold
-
+            normalized_gold_sql = self._normalized_gold_sql(gold_sql)
             for strategy in strategies:
+                key = (question_id, strategy)
+                previous = previous_by_key.get(key)
+                same_question = (
+                    previous is not None
+                    and previous.get("question") == question.get("question")
+                    and previous.get("category", "uncategorized")
+                    == question.get("category", "uncategorized")
+                    and previous.get("expected_answerable")
+                    == question.get("expected_answerable")
+                    and previous.get("expected_ambiguity")
+                    == question.get("expected_ambiguity")
+                    and previous.get("seed") == self.seed
+                )
+                same_gold = (
+                    previous is not None
+                    and previous.get("gold_sql") == normalized_gold_sql
+                )
+                if same_question and same_gold and not _is_rate_limited_record(previous):
+                    raw_records.append(previous)
+                    self.resumed_rows += 1
+                    continue
+                if same_question and _is_rate_limited_record(previous):
+                    self.rerun_rate_limited_rows += 1
+
+                gold = gold_cache.get(question_id)
+                if gold is None:
+                    gold = self._run_gold(gold_sql)
+                    gold_cache[question_id] = gold
                 record = self._run_one(question, strategy, gold)
                 raw_records.append(record)
-                aggregate = stats[strategy]
-                if gold_sql is not None:
-                    aggregate["gold_sql_questions"] += 1
-                if record["safe_sql"]:
-                    aggregate["valid_sql_count"] += 1
-                if record["result_match"] is not None:
-                    aggregate["comparable_pairs"] += 1
-                    if record["result_match"]:
-                        aggregate["correct_result_pairs"] += 1
 
-        metrics = [self._format_metrics(key, value) for key, value in stats.items()]
+        metrics = [
+            self._format_metrics(strategy, questions, raw_records)
+            for strategy in strategies
+        ]
         baseline = next(
             (row for row in metrics if row["strategy"] == "schema_glossary"), None
         )
@@ -144,6 +183,15 @@ class EvaluationRunner:
                 if row[field] is not None and baseline[field] is not None:
                     row[delta_field] = row[field] - baseline[field]
         return raw_records, metrics
+
+    def _normalized_gold_sql(self, gold_sql: str | None) -> str | None:
+        """Match saved validated gold SQL against the current raw golden SQL."""
+        if gold_sql is None:
+            return None
+        try:
+            return self.policy.validate(gold_sql)
+        except UnsafeQueryError:
+            return gold_sql
 
     def _run_gold(self, gold_sql: str | None) -> dict[str, Any]:
         if gold_sql is None:
@@ -343,35 +391,102 @@ class EvaluationRunner:
             "usage": usage,
             "sanity_warnings": sanity_warnings,
             "result_match": result_match,
+            "run_status": (
+                "not_run_rate_limited"
+                if _is_rate_limit_error(generation_error)
+                else "completed"
+            ),
         }
         return record
 
     @staticmethod
-    def _format_metrics(strategy: str, aggregate: dict[str, Any]) -> dict[str, Any]:
-        total = aggregate["total_questions"]
-        compared = aggregate["comparable_pairs"]
-        gold_sql_questions = aggregate["gold_sql_questions"]
-        correct = aggregate["correct_result_pairs"]
+    def _format_metrics(
+        strategy: str,
+        questions: list[dict[str, Any]],
+        raw_records: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        records = [row for row in raw_records if row.get("strategy") == strategy]
+        scorable = [row for row in records if not _is_rate_limited_record(row)]
+        gold_records = [row for row in scorable if row.get("gold_sql") is not None]
+        correct = sum(row.get("result_match") is True for row in gold_records)
+        comparable = [row for row in gold_records if row.get("result_match") is not None]
+        comparable_correct = sum(row.get("result_match") is True for row in comparable)
+        sql_expected = [
+            row for row in scorable
+            if row.get("expected_answerable") is True
+            and row.get("expected_ambiguity") is not True
+        ]
+        ambiguous = [row for row in scorable if row.get("expected_ambiguity") is True]
+        unanswerable = [row for row in scorable if row.get("expected_answerable") is False]
+        answerable_unambiguous = [
+            row for row in scorable
+            if row.get("expected_answerable") is True
+            and row.get("expected_ambiguity") is False
+        ]
+        ambiguity_flags = sum(
+            bool((row.get("generation") or {}).get("ambiguity_flag"))
+            for row in ambiguous
+        )
+        declines = sum(
+            (row.get("generation") or {}).get("answerable") is False
+            for row in unanswerable
+        )
+        false_clarifications = sum(
+            bool((row.get("generation") or {}).get("ambiguity_flag"))
+            for row in answerable_unambiguous
+        )
+        valid_sql_count = sum(bool(row.get("safe_sql")) for row in sql_expected)
+        gold_sql_questions = len(gold_records)
+        comparable_count = len(comparable)
         all_gold_lower, all_gold_upper = clopper_pearson_interval(
             correct, gold_sql_questions
         )
-        comparable_lower, comparable_upper = clopper_pearson_interval(correct, compared)
+        comparable_lower, comparable_upper = clopper_pearson_interval(
+            comparable_correct, comparable_count
+        )
+        total = len(questions)
         return {
             "strategy": strategy,
             "total_questions": total,
-            "gold_sql_questions": aggregate["gold_sql_questions"],
-            "valid_sql_count": aggregate["valid_sql_count"],
-            "valid_sql_rate": aggregate["valid_sql_count"] / total if total else 0.0,
-            "comparable_pairs": compared,
-            "correct_result_pairs": correct,
+            "gold_sql_questions": gold_sql_questions,
+            "valid_sql_count": valid_sql_count,
+            "valid_sql_denominator": len(sql_expected),
+            "valid_sql_rate": (
+                valid_sql_count / len(sql_expected) if sql_expected else None
+            ),
+            "comparable_pairs": comparable_count,
+            "correct_result_pairs": comparable_correct,
             "execution_accuracy_all_gold": (
                 correct / gold_sql_questions if gold_sql_questions else None
             ),
             "all_gold_ci95_lower": all_gold_lower,
             "all_gold_ci95_upper": all_gold_upper,
-            "execution_accuracy_comparable": correct / compared if compared else None,
+            "execution_accuracy_comparable": (
+                comparable_correct / comparable_count if comparable_count else None
+            ),
             "comparable_ci95_lower": comparable_lower,
             "comparable_ci95_upper": comparable_upper,
+            "execution_accuracy_gold_sql": (
+                correct / gold_sql_questions if gold_sql_questions else None
+            ),
+            "ambiguity_flag_rate": (
+                ambiguity_flags / len(ambiguous) if ambiguous else None
+            ),
+            "ambiguity_flag_count": ambiguity_flags,
+            "ambiguous_question_count": len(ambiguous),
+            "decline_rate": declines / len(unanswerable) if unanswerable else None,
+            "decline_count": declines,
+            "unanswerable_question_count": len(unanswerable),
+            "false_clarification_rate": (
+                false_clarifications / len(answerable_unambiguous)
+                if answerable_unambiguous
+                else None
+            ),
+            "false_clarification_count": false_clarifications,
+            "answerable_unambiguous_count": len(answerable_unambiguous),
+            "not_run_rate_limited": sum(
+                _is_rate_limited_record(row) for row in records
+            ),
         }
 
 
@@ -383,8 +498,15 @@ def _category_metrics(raw_records: list[dict[str, Any]]) -> list[dict[str, Any]]
             continue
         key = (record.get("strategy", ""), record.get("category", "uncategorized"))
         stats = grouped.setdefault(
-            key, {"gold": 0, "correct": 0, "comparable": 0, "comparable_correct": 0}
+            key,
+            {
+                "gold": 0, "correct": 0, "comparable": 0,
+                "comparable_correct": 0, "not_run_rate_limited": 0,
+            },
         )
+        if _is_rate_limited_record(record):
+            stats["not_run_rate_limited"] += 1
+            continue
         stats["gold"] += 1
         if record.get("result_match") is not None:
             stats["comparable"] += 1
@@ -403,7 +525,9 @@ def _category_metrics(raw_records: list[dict[str, Any]]) -> list[dict[str, Any]]
                 "category": category,
                 "gold_sql_questions": stats["gold"],
                 "correct_result_pairs": stats["correct"],
-                "execution_accuracy_all_gold": stats["correct"] / stats["gold"],
+                "execution_accuracy_all_gold": (
+                    stats["correct"] / stats["gold"] if stats["gold"] else None
+                ),
                 "all_gold_ci95_lower": all_lower,
                 "all_gold_ci95_upper": all_upper,
                 "comparable_pairs": stats["comparable"],
@@ -415,6 +539,7 @@ def _category_metrics(raw_records: list[dict[str, Any]]) -> list[dict[str, Any]]
                 ),
                 "comparable_ci95_lower": comparable_lower,
                 "comparable_ci95_upper": comparable_upper,
+                "not_run_rate_limited": stats["not_run_rate_limited"],
             }
         )
     return category_rows
@@ -454,20 +579,54 @@ def main() -> int:
     )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--strategies", nargs="+", choices=sorted(DEFAULT_STRATEGIES))
+    parser.add_argument(
+        "--resume", action="store_true",
+        help="Reuse completed question/strategy rows and rerun rate-limited rows only.",
+    )
     args = parser.parse_args()
 
     random.seed(args.seed)
     np.random.seed(args.seed)
     questions = load_questions(args.golden_set)
     strategies = tuple(args.strategies or DEFAULT_STRATEGIES)
+    previous_records: list[dict[str, Any]] = []
+    if args.resume:
+        resume_path = args.output_dir / "raw_outputs.jsonl"
+        if not resume_path.exists():
+            parser.error(f"--resume requires an existing file: {resume_path}")
+        previous_records = [
+            json.loads(line)
+            for line in resume_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
     runner = EvaluationRunner(seed=args.seed)
-    raw_records, metrics = runner.run(questions, strategies)
+    raw_records, metrics = runner.run(questions, strategies, previous_records)
     raw_path, csv_path = write_reports(args.output_dir, raw_records, metrics)
     print(f"Evaluated {len(questions)} questions across {len(strategies)} strategies.")
+    if args.resume:
+        print(
+            f"Reused completed rows: {runner.resumed_rows}; "
+            f"retried rate-limited rows: {runner.rerun_rate_limited_rows}."
+        )
     print(f"Raw outputs: {raw_path}")
     print(f"Metrics CSV: {csv_path}")
     print(f"Category metrics CSV: {args.output_dir / 'category_metrics.csv'}")
     for row in metrics:
+        print(
+            f"{row['strategy']}: gold-SQL execution accuracy "
+            f"{row['correct_result_pairs']}/{row['gold_sql_questions']}="
+            f"{row['execution_accuracy_gold_sql']}; ambiguity-flag rate "
+            f"{row['ambiguity_flag_count']}/{row['ambiguous_question_count']}="
+            f"{row['ambiguity_flag_rate']}; decline rate "
+            f"{row['decline_count']}/{row['unanswerable_question_count']}="
+            f"{row['decline_rate']}; false-clarification rate "
+            f"{row['false_clarification_count']}/"
+            f"{row['answerable_unambiguous_count']}="
+            f"{row['false_clarification_rate']}; valid-SQL rate "
+            f"{row['valid_sql_count']}/{row['valid_sql_denominator']}="
+            f"{row['valid_sql_rate']}; not run (429)="
+            f"{row['not_run_rate_limited']}"
+        )
         if row["strategy"] == "schema_glossary_selfcorrect":
             all_gold_delta = row["all_gold_delta_vs_schema_glossary"]
             comparable_delta = row["comparable_delta_vs_schema_glossary"]

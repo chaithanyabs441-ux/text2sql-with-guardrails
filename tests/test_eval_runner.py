@@ -87,7 +87,7 @@ def test_runner_writes_raw_jsonl_and_strategy_metrics(tmp_path):
 
     assert len(raw_path.read_text(encoding="utf-8").splitlines()) == 2
     assert json.loads(raw_path.read_text(encoding="utf-8").splitlines()[0])["result_match"]
-    assert metric_rows[0]["valid_sql_rate"] == "0.5"
+    assert metric_rows[0]["valid_sql_rate"] == "1.0"
     assert metric_rows[0]["execution_accuracy_all_gold"] == "1.0"
     assert metric_rows[0]["execution_accuracy_comparable"] == "1.0"
     category_rows = list(csv.DictReader((tmp_path / "category_metrics.csv").open(encoding="utf-8")))
