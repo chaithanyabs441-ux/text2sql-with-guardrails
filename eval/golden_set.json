@@ -1,0 +1,484 @@
+{
+  "questions": [
+    {
+      "id": "g001",
+      "question": "List the names and codes of all regions alphabetically.",
+      "category": "simple_lookup",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT name, code FROM regions ORDER BY name"
+    },
+    {
+      "id": "g002",
+      "question": "Which five products have the highest unit prices?",
+      "category": "simple_lookup",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT name, unit_price FROM products ORDER BY unit_price DESC LIMIT 5"
+    },
+    {
+      "id": "g003",
+      "question": "How many active customers are there?",
+      "category": "aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COUNT(*) AS active_customer_count FROM customers WHERE is_deleted = FALSE"
+    },
+    {
+      "id": "g004",
+      "question": "How many active enterprise customers are there?",
+      "category": "filtering",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COUNT(*) AS enterprise_customer_count FROM customers WHERE is_deleted = FALSE AND LOWER(segment) = LOWER('enterprise')"
+    },
+    {
+      "id": "g005",
+      "question": "What is the total net revenue across all orders?",
+      "category": "aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COALESCE(SUM(net_revenue), 0) AS total_net_revenue FROM orders"
+    },
+    {
+      "id": "g006",
+      "question": "How many orders are there in each status?",
+      "category": "group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT status, COUNT(*) AS order_count FROM orders GROUP BY status ORDER BY status"
+    },
+    {
+      "id": "g007",
+      "question": "How many active customers are in each region?",
+      "category": "join_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT r.name AS region, COUNT(c.id) AS active_customer_count FROM customers AS c JOIN regions AS r ON r.id = c.region_id WHERE c.is_deleted = FALSE GROUP BY r.name ORDER BY r.name"
+    },
+    {
+      "id": "g008",
+      "question": "How many completed orders are there for each active customer segment?",
+      "category": "join_filter_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.segment, COUNT(o.id) AS completed_order_count FROM orders AS o JOIN customers AS c ON c.id = o.customer_id WHERE o.status = 'completed' AND c.is_deleted = FALSE GROUP BY c.segment ORDER BY c.segment"
+    },
+    {
+      "id": "g009",
+      "question": "What is the total net revenue from active enterprise customers in Europe?",
+      "category": "multi_join_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COALESCE(SUM(o.net_revenue), 0) AS total_net_revenue FROM orders AS o JOIN customers AS c ON c.id = o.customer_id JOIN regions AS r ON r.id = c.region_id WHERE c.is_deleted = FALSE AND LOWER(c.segment) = LOWER('enterprise') AND LOWER(r.name) = LOWER('Europe')"
+    },
+    {
+      "id": "g010",
+      "question": "How much net revenue was recorded during calendar year 2025?",
+      "category": "date_filter_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COALESCE(SUM(net_revenue), 0) AS total_net_revenue FROM orders WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01'"
+    },
+    {
+      "id": "g011",
+      "question": "What was monthly net revenue during 2025?",
+      "category": "date_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(net_revenue) AS total_net_revenue FROM orders WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01' GROUP BY month ORDER BY month"
+    },
+    {
+      "id": "g012",
+      "question": "Which five products have the largest total order-item line totals?",
+      "category": "join_aggregation_top_k",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT p.name, SUM(oi.line_total) AS total_line_total FROM order_items AS oi JOIN products AS p ON p.id = oi.product_id GROUP BY p.name ORDER BY total_line_total DESC LIMIT 5"
+    },
+    {
+      "id": "g013",
+      "question": "What is the average quantity per order item for each product?",
+      "category": "join_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT p.name, AVG(oi.quantity) AS average_quantity FROM order_items AS oi JOIN products AS p ON p.id = oi.product_id GROUP BY p.name ORDER BY p.name"
+    },
+    {
+      "id": "g014",
+      "question": "What was our profit after taxes last year?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g015",
+      "question": "Show me revenue.",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g016",
+      "question": "List active product names and their category names alphabetically.",
+      "category": "join_filter_lookup",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT p.name AS product, c.name AS category FROM products AS p JOIN categories AS c ON c.id = p.category_id WHERE p.is_active = TRUE ORDER BY p.name"
+    },
+    {
+      "id": "g017",
+      "question": "How many products are in each category?",
+      "category": "join_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.name AS category, COUNT(p.id) AS product_count FROM categories AS c LEFT JOIN products AS p ON p.category_id = c.id GROUP BY c.name ORDER BY c.name"
+    },
+    {
+      "id": "g018",
+      "question": "How many orders has each employee handled?",
+      "category": "join_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT CONCAT(e.first_name, ' ', e.last_name) AS employee, COUNT(o.id) AS order_count FROM employees AS e LEFT JOIN orders AS o ON o.employee_id = e.id GROUP BY e.id, e.first_name, e.last_name ORDER BY employee"
+    },
+    {
+      "id": "g019",
+      "question": "How many orders were placed in each month of 2025?",
+      "category": "date_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT DATE_TRUNC('month', order_date) AS month, COUNT(*) AS order_count FROM orders WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01' GROUP BY month ORDER BY month"
+    },
+    {
+      "id": "g020",
+      "question": "How many distinct orders have at least one failed payment?",
+      "category": "distinct_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COUNT(DISTINCT order_id) AS orders_with_failed_payment FROM payments WHERE status = 'failed'"
+    },
+    {
+      "id": "g021",
+      "question": "What is the total amount of successful payments by payment method?",
+      "category": "filtered_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT payment_method, SUM(amount) AS successful_payment_amount FROM payments WHERE status = 'success' GROUP BY payment_method ORDER BY payment_method"
+    },
+    {
+      "id": "g022",
+      "question": "How many returns and how much refund amount are there for each return reason?",
+      "category": "group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT reason, COUNT(*) AS return_count, COALESCE(SUM(refund_amount), 0) AS total_refund_amount FROM returns GROUP BY reason ORDER BY reason"
+    },
+    {
+      "id": "g023",
+      "question": "What is the average support ticket resolution time by issue type?",
+      "category": "group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT issue_type, AVG(resolution_time_hours) AS average_resolution_hours FROM support_tickets GROUP BY issue_type ORDER BY issue_type"
+    },
+    {
+      "id": "g024",
+      "question": "How many active customers are in each segment and region?",
+      "category": "multi_join_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.segment, r.name AS region, COUNT(c.id) AS active_customer_count FROM customers AS c JOIN regions AS r ON r.id = c.region_id WHERE c.is_deleted = FALSE GROUP BY c.segment, r.name ORDER BY c.segment, r.name"
+    },
+    {
+      "id": "g025",
+      "question": "How many employees were hired in each calendar year?",
+      "category": "date_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT DATE_TRUNC('year', hire_date) AS hire_year, COUNT(*) AS employee_count FROM employees WHERE hire_date IS NOT NULL GROUP BY hire_year ORDER BY hire_year"
+    },
+    {
+      "id": "g026",
+      "question": "Which five active customers generated the most net revenue in 2025?",
+      "category": "date_join_aggregation_top_k",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.name, SUM(o.net_revenue) AS total_net_revenue FROM customers AS c JOIN orders AS o ON o.customer_id = c.id WHERE c.is_deleted = FALSE AND o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY c.id, c.name ORDER BY total_net_revenue DESC, c.name LIMIT 5"
+    },
+    {
+      "id": "g027",
+      "question": "How many orders have no successful payment?",
+      "category": "correlated_subquery_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COUNT(*) AS orders_without_successful_payment FROM orders AS o WHERE NOT EXISTS (SELECT 1 FROM payments AS p WHERE p.order_id = o.id AND p.status = 'success')"
+    },
+    {
+      "id": "g028",
+      "question": "List the names of products that have been returned at least once.",
+      "category": "multi_join_distinct_lookup",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT DISTINCT p.name FROM products AS p JOIN order_items AS oi ON oi.product_id = p.id JOIN returns AS r ON r.order_item_id = oi.id ORDER BY p.name"
+    },
+    {
+      "id": "g029",
+      "question": "How are our customers doing?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    },
+    {
+      "id": "g030",
+      "question": "What is our customer satisfaction score?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g031",
+      "question": "List the names and IDs of top-level product categories.",
+      "category": "self_referential_lookup",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT id, name FROM categories WHERE parent_id IS NULL ORDER BY name"
+    },
+    {
+      "id": "g032",
+      "question": "Which subcategories belong directly to Electronics?",
+      "category": "self_join_filter",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT child.name AS subcategory FROM categories AS child JOIN categories AS parent ON parent.id = child.parent_id WHERE LOWER(parent.name) = LOWER('Electronics') ORDER BY child.name"
+    },
+    {
+      "id": "g033",
+      "question": "Which five products have the most units sold?",
+      "category": "join_aggregation_top_k",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT p.name, SUM(oi.quantity) AS units_sold FROM order_items AS oi JOIN products AS p ON p.id = oi.product_id GROUP BY p.id, p.name ORDER BY units_sold DESC, p.name LIMIT 5"
+    },
+    {
+      "id": "g034",
+      "question": "How many active products are in each category, including categories with none?",
+      "category": "left_join_filtered_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.name AS category, COUNT(p.id) AS active_product_count FROM categories AS c LEFT JOIN products AS p ON p.category_id = c.id AND p.is_active = TRUE GROUP BY c.id, c.name ORDER BY c.name"
+    },
+    {
+      "id": "g035",
+      "question": "How many active customers were created in each calendar year?",
+      "category": "date_group_by_filter",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT DATE_TRUNC('year', created_at) AS created_year, COUNT(*) AS customer_count FROM customers WHERE is_deleted = FALSE GROUP BY created_year ORDER BY created_year"
+    },
+    {
+      "id": "g036",
+      "question": "How many orders are there in each status and region for active customers?",
+      "category": "multi_join_group_by_filter",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT r.name AS region, o.status, COUNT(o.id) AS order_count FROM orders AS o JOIN customers AS c ON c.id = o.customer_id JOIN regions AS r ON r.id = c.region_id WHERE c.is_deleted = FALSE GROUP BY r.name, o.status ORDER BY r.name, o.status"
+    },
+    {
+      "id": "g037",
+      "question": "What is the average net revenue per order for each order status?",
+      "category": "group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT status, AVG(net_revenue) AS average_net_revenue FROM orders GROUP BY status ORDER BY status"
+    },
+    {
+      "id": "g038",
+      "question": "How many active customers with pending orders are there in each segment?",
+      "category": "join_distinct_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.segment, COUNT(DISTINCT c.id) AS customer_count FROM customers AS c JOIN orders AS o ON o.customer_id = c.id WHERE c.is_deleted = FALSE AND o.status = 'pending' GROUP BY c.segment ORDER BY c.segment"
+    },
+    {
+      "id": "g039",
+      "question": "Which employee handled the most orders in 2025?",
+      "category": "date_join_aggregation_top_k",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT CONCAT(e.first_name, ' ', e.last_name) AS employee, COUNT(o.id) AS order_count FROM employees AS e JOIN orders AS o ON o.employee_id = e.id WHERE o.order_date >= DATE '2025-01-01' AND o.order_date < DATE '2026-01-01' GROUP BY e.id, e.first_name, e.last_name ORDER BY order_count DESC, employee LIMIT 1"
+    },
+    {
+      "id": "g040",
+      "question": "For each payment status, how many payments were processed and what was their total amount?",
+      "category": "group_by_multi_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT status, COUNT(*) AS payment_count, SUM(amount) AS total_amount FROM payments GROUP BY status ORDER BY status"
+    },
+    {
+      "id": "g041",
+      "question": "How many returns were recorded in each year?",
+      "category": "date_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT DATE_TRUNC('year', return_date) AS return_year, COUNT(*) AS return_count FROM returns WHERE return_date IS NOT NULL GROUP BY return_year ORDER BY return_year"
+    },
+    {
+      "id": "g042",
+      "question": "How many support tickets are there for each issue type?",
+      "category": "group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT issue_type, COUNT(*) AS ticket_count FROM support_tickets GROUP BY issue_type ORDER BY issue_type"
+    },
+    {
+      "id": "g043",
+      "question": "Which five products have the highest average order-item line total?",
+      "category": "join_aggregation_top_k",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT p.name, AVG(oi.line_total) AS average_line_total FROM products AS p JOIN order_items AS oi ON oi.product_id = p.id GROUP BY p.id, p.name ORDER BY average_line_total DESC, p.name LIMIT 5"
+    },
+    {
+      "id": "g044",
+      "question": "How many active customers have never placed an order?",
+      "category": "correlated_subquery_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COUNT(*) AS active_customers_without_orders FROM customers AS c WHERE c.is_deleted = FALSE AND NOT EXISTS (SELECT 1 FROM orders AS o WHERE o.customer_id = c.id)"
+    },
+    {
+      "id": "g045",
+      "question": "What was our gross profit margin last year?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g046",
+      "question": "What is the total gross revenue for each order status?",
+      "category": "group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT status, SUM(gross_revenue) AS total_gross_revenue FROM orders GROUP BY status ORDER BY status"
+    },
+    {
+      "id": "g047",
+      "question": "How many completed orders were placed by active customers in each region?",
+      "category": "multi_join_filtered_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT r.name AS region, COUNT(o.id) AS completed_order_count FROM orders AS o JOIN customers AS c ON c.id = o.customer_id JOIN regions AS r ON r.id = c.region_id WHERE c.is_deleted = FALSE AND o.status = 'completed' GROUP BY r.name ORDER BY r.name"
+    },
+    {
+      "id": "g048",
+      "question": "What is the average recorded discount percentage for order items in each product category?",
+      "category": "multi_join_group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.name AS category, AVG(oi.discount_pct) AS average_discount_pct FROM order_items AS oi JOIN products AS p ON p.id = oi.product_id JOIN categories AS c ON c.id = p.category_id GROUP BY c.name ORDER BY c.name"
+    },
+    {
+      "id": "g049",
+      "question": "For each product category, how many distinct returned products are there and what is the total refund amount?",
+      "category": "multi_join_return_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.name AS category, COUNT(DISTINCT p.id) AS returned_product_count, COALESCE(SUM(r.refund_amount), 0) AS total_refund_amount FROM returns AS r JOIN order_items AS oi ON oi.id = r.order_item_id JOIN products AS p ON p.id = oi.product_id JOIN categories AS c ON c.id = p.category_id GROUP BY c.name ORDER BY c.name"
+    },
+    {
+      "id": "g050",
+      "question": "What is the most recent payment processing timestamp for each payment method?",
+      "category": "group_by_maximum",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT payment_method, MAX(processed_at) AS latest_processed_at FROM payments GROUP BY payment_method ORDER BY payment_method"
+    },
+    {
+      "id": "g051",
+      "question": "How many orders contain at least two order items?",
+      "category": "grouped_subquery_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT COUNT(*) AS orders_with_multiple_items FROM (SELECT order_id FROM order_items GROUP BY order_id HAVING COUNT(*) >= 2) AS item_counts"
+    },
+    {
+      "id": "g052",
+      "question": "What is total net revenue by active customer segment and order status?",
+      "category": "join_group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.segment, o.status, SUM(o.net_revenue) AS total_net_revenue FROM orders AS o JOIN customers AS c ON c.id = o.customer_id WHERE c.is_deleted = FALSE GROUP BY c.segment, o.status ORDER BY c.segment, o.status"
+    },
+    {
+      "id": "g053",
+      "question": "What is the average support ticket resolution time in each region for active customers?",
+      "category": "multi_join_group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT r.name AS region, AVG(st.resolution_time_hours) AS average_resolution_hours FROM support_tickets AS st JOIN customers AS c ON c.id = st.customer_id JOIN regions AS r ON r.id = c.region_id WHERE c.is_deleted = FALSE GROUP BY r.name ORDER BY r.name"
+    },
+    {
+      "id": "g054",
+      "question": "How many employees are assigned to each region?",
+      "category": "join_group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT r.name AS region, COUNT(e.id) AS employee_count FROM regions AS r LEFT JOIN employees AS e ON e.region_id = r.id GROUP BY r.name ORDER BY r.name"
+    },
+    {
+      "id": "g055",
+      "question": "How many active customers in each region were created in 2025?",
+      "category": "date_multi_join_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT r.name AS region, COUNT(c.id) AS customer_count FROM customers AS c JOIN regions AS r ON r.id = c.region_id WHERE c.is_deleted = FALSE AND c.created_at >= DATE '2025-01-01' AND c.created_at < DATE '2026-01-01' GROUP BY r.name ORDER BY r.name"
+    },
+    {
+      "id": "g056",
+      "question": "Which five product categories have the largest total order-item line totals?",
+      "category": "multi_join_aggregation_top_k",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT c.name AS category, SUM(oi.line_total) AS total_line_total FROM order_items AS oi JOIN products AS p ON p.id = oi.product_id JOIN categories AS c ON c.id = p.category_id GROUP BY c.id, c.name ORDER BY total_line_total DESC, c.name LIMIT 5"
+    },
+    {
+      "id": "g057",
+      "question": "How many active customers in each region have had at least one returned item?",
+      "category": "multi_join_distinct_group_by",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT r.name AS region, COUNT(DISTINCT c.id) AS customer_count FROM customers AS c JOIN regions AS r ON r.id = c.region_id JOIN orders AS o ON o.customer_id = c.id JOIN order_items AS oi ON oi.order_id = o.id JOIN returns AS ret ON ret.order_item_id = oi.id WHERE c.is_deleted = FALSE GROUP BY r.name ORDER BY r.name"
+    },
+    {
+      "id": "g058",
+      "question": "What is the total payment amount processed in each month?",
+      "category": "date_group_by_aggregation",
+      "expected_answerable": true,
+      "expected_ambiguity": false,
+      "gold_sql": "SELECT DATE_TRUNC('month', processed_at) AS payment_month, SUM(amount) AS total_payment_amount FROM payments WHERE processed_at IS NOT NULL GROUP BY payment_month ORDER BY payment_month"
+    },
+    {
+      "id": "g059",
+      "question": "What was net profit by region last year?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "expected_ambiguity": false,
+      "gold_sql": null
+    },
+    {
+      "id": "g060",
+      "question": "Which region performed best?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "expected_ambiguity": true,
+      "gold_sql": null
+    }
+  ]
+}

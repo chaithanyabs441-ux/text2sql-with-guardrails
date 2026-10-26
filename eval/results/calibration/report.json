@@ -1,0 +1,64 @@
+{
+  "features": [
+    "back_translation_similarity",
+    "agreement_ratio",
+    "sanity_warning_count",
+    "self_reported_confidence",
+    "schema_coverage"
+  ],
+  "signal_definitions": {
+    "agreement_ratio": "Dominant result set among 3 candidates generated at temperatures 0.0, 0.3, and 0.7 for the row's prompting strategy; failed candidates count against agreement.",
+    "schema_coverage": "Fraction of SQL-referenced tables listed in the generation's tables_used field."
+  },
+  "sample_count": 152,
+  "train_question_count": 29,
+  "validation_question_count": 10,
+  "test_question_count": 13,
+  "test_candidate_count": 39,
+  "calibrator": {
+    "auroc": 0.8289473684210525,
+    "brier_score": 0.22047563712582965,
+    "ece": 0.21268521069401292
+  },
+  "self_reported_confidence": {
+    "auroc": 0.7157894736842105,
+    "brier_score": 0.4255128205128206,
+    "ece": 0.4343589743589744
+  },
+  "reliability_bins": [
+    {
+      "count": 5,
+      "confidence": 0.391421685665679,
+      "accuracy": 0.0
+    },
+    {
+      "count": 9,
+      "confidence": 0.47982256040194116,
+      "accuracy": 0.2222222222222222
+    },
+    {
+      "count": 25,
+      "confidence": 0.5592315301951745,
+      "accuracy": 0.72
+    }
+  ],
+  "abstention_thresholds": {
+    "answer_threshold": 1.01,
+    "warn_threshold": 0.4900165994243052
+  },
+  "model": {
+    "type": "logistic_regression",
+    "intercept": [
+      -1.561235312433313
+    ],
+    "coefficients": [
+      [
+        0.6951495936792655,
+        0.8806449698445459,
+        -0.6451689533421884,
+        0.04417566500462543,
+        0.22529946370587656
+      ]
+    ]
+  }
+}

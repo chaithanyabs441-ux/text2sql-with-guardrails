@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.git
+.cache
+.venv
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.ruff_cache
+.coverage
+eval/results/raw_outputs.jsonl
+eval/results/redteam_raw.jsonl

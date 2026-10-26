@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "t2s-trust"
+version = "0.1.0"
+description = "Trustworthy NL-to-SQL: Layered Guardrails, Calibrated Hallucination Detection, and Adversarial Security Evaluation"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    # API & Web
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "streamlit>=1.32.0",
+    
+    # Database
+    "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.9",
+    "duckdb>=0.10.0",
+    "duckdb-engine>=0.11.0",
+    
+    # Security & Parsing
+    "sqlglot>=23.0.0",
+    
+    # LLM & Validation
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "openai>=1.30.0",
+    "python-dotenv>=1.0.0",
+    
+    # ML & Data
+    "sentence-transformers>=2.6.0",
+    "scikit-learn>=1.4.0",
+    "pandas>=2.2.0",
+    "numpy>=1.26.0",
+    
+]
+
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.6.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0",
+    "hypothesis>=6.98.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --cov=src/t2s --cov-report=term-missing"

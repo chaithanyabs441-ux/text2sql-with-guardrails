@@ -1,0 +1,4 @@
+strategy,total_questions,gold_sql_questions,valid_sql_count,valid_sql_rate,comparable_pairs,correct_result_pairs,execution_accuracy,average_generation_latency_ms,prompt_tokens,completion_tokens,estimated_token_cost_usd
+zero_shot,60,53,55,0.9166666666666666,50,23,0.46,1528.806,13886,10626,
+schema_glossary,60,53,54,0.9,51,29,0.5686274509803921,3155.3,23527,9313,
+schema_glossary_selfcorrect,60,53,54,0.9,51,29,0.5686274509803921,54.844,0,0,

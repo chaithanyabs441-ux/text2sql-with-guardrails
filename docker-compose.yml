@@ -1,0 +1,60 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: t2s_postgres
+    environment:
+      POSTGRES_USER: t2s_user
+      POSTGRES_PASSWORD: t2s_password
+      POSTGRES_DB: t2s_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./docker/readonly_role.sql:/docker-entrypoint-initdb.d/02_readonly_role.sql:ro
+      - ./docker/eval_seed.sql:/docker-entrypoint-initdb.d/03_eval_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U t2s_user -d t2s_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      target: api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://t2s_user:t2s_password@db:5432/t2s_db
+      DATABASE_URL_READONLY: postgresql+psycopg2://t2s_readonly:t2s_readonly_password@db:5432/t2s_db
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

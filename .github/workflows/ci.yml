@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-deps -e .
+          python -m pip install \
+            fastapi \
+            httpx \
+            numpy \
+            pandas \
+            openai \
+            pydantic \
+            pydantic-settings \
+            pytest \
+            pytest-cov \
+            pyyaml \
+            ruff \
+            scikit-learn \
+            sqlalchemy \
+            sqlglot
+
+      - name: Lint
+        run: >-
+          ruff check src/t2s/api/main.py src/t2s/config.py
+          src/t2s/generation/generator.py src/t2s/generation/prompt_builder.py
+          src/t2s/guardrails/policy.py
+          src/t2s/llm/cost_tracker.py src/t2s/llm/openai_adapter.py
+          src/t2s/sandbox/executor.py src/t2s/schema/retriever.py
+          src/t2s/verification/back_translation.py eval/verify_gold.py
+          src/t2s/verification/abstention.py src/t2s/verification/agreement.py
+          src/t2s/verification/calibration.py
+          src/t2s/verification/result_comparison.py
+          eval/run_eval.py eval/run_calibration.py eval/run_redteam.py
+          frontend/app.py scripts/demo.py tests
+
+      - name: Test
+        run: python -m pytest

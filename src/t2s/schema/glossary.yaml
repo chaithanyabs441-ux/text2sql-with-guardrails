@@ -1,0 +1,40 @@
+# Business Glossary and Semantic Layer
+# This resolves ambiguities before the LLM even sees the schema.
+terms:
+  revenue:
+    definition: "Always use net_revenue for financial calculations, as it accounts for discounts and returns."
+    target_column: "orders.net_revenue"
+  
+  customer:
+    definition: "Only count active customers. The customers table has a soft delete flag."
+    filter_condition: "customers.is_deleted = FALSE"
+
+  order_status:
+    definition: >-
+      orders.status records the lifecycle state of an order. The stored values
+      are completed, pending, cancelled, and returned. Do not infer that a
+      question wants completed orders unless it says so.
+
+  completed_order:
+    definition: "An order whose lifecycle is complete."
+    filter_condition: "orders.status = 'completed'"
+
+  pending_order:
+    definition: "An order awaiting completion."
+    filter_condition: "orders.status = 'pending'"
+
+  cancelled_order:
+    definition: "An order that was cancelled."
+    filter_condition: "orders.status = 'cancelled'"
+
+  returned_order:
+    definition: "An order recorded with returned status."
+    filter_condition: "orders.status = 'returned'"
+
+  active_product:
+    definition: "Products that are currently being sold."
+    filter_condition: "products.is_active = TRUE"
+
+  top_products:
+    definition: "Rank products by total net revenue generated, not by quantity sold."
+    logic: "ORDER BY SUM(order_items.line_total) DESC"
