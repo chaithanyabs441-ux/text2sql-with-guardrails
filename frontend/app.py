@@ -8,7 +8,6 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
-
 FRONTEND_DIR = Path(__file__).resolve().parent
 API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 MAX_REQUEST_BYTES = 1_000_000
