@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SafeQuery AI — Ask your data in plain English</title>
+<meta name="description" content="Turn business questions into verified, read-only SQL with confidence scores and safety checks.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23f2c200'/%3E%3Crect x='4' y='4' width='24' height='24' fill='%231d2a6b'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="crt" aria-hidden="true"></div>
+  <div class="hazard top"></div>
+  <header class="top"><div class="wrap head">
+    <div class="logo"><i aria-hidden="true">⚛</i><div><h1>SAFEQUERY AI</h1><p class="tag">PLAIN-ENGLISH QUESTIONS • VERIFIED READ-ONLY SQL</p></div></div>
+    <img class="mascot" src="/vault-boy.jfif" alt="Vault Boy giving a thumbs-up">
+    <span class="badge" id="badge"><b aria-hidden="true"></b>DEMO MODE</span>
+  </div></header>
+
+  <main>
+    <div class="col">
+      <form class="panel" id="form">
+        <label for="q" class="lab">ASK THE VAULT DATABASE</label>
+        <textarea id="q" class="field" rows="4" placeholder="e.g. Which products sold the most last month?"></textarea>
+        <div class="chips" id="chips" aria-label="Example questions"></div>
+        <div class="row">
+          <div><label for="strategy" class="lab" style="margin-bottom:8px">STRATEGY</label>
+            <select id="strategy" class="field">
+              <option value="schema_glossary">Schema + glossary</option>
+              <option value="zero_shot">Zero shot</option>
+              <option value="schema_glossary_selfcorrect">Schema + glossary + self-correct</option>
+            </select></div>
+          <button type="submit" class="btn run" id="run" disabled>RUN QUERY ›</button>
+        </div>
+        <p class="tip">Tip: press Ctrl/Cmd + Enter to run.</p>
+      </form>
+      <div class="col" id="out" aria-live="polite"></div>
+    </div>
+    <aside class="col">
+      <section class="panel" aria-label="Settings">
+        <div class="ph"><h2>SETTINGS</h2></div>
+        <label for="api" class="lab" style="font-size:9px;margin-bottom:8px">API ADDRESS</label>
+        <input id="api" class="field" style="font-size:.88rem" spellcheck="false">
+        <label class="chk"><input type="checkbox" id="demo">Demo mode (no network calls)</label>
+      </section>
+      <section class="panel" aria-label="History">
+        <div class="ph"><h2>HISTORY</h2><button type="button" class="btn" id="clear" hidden>CLEAR HISTORY</button></div>
+        <p class="tm" id="hempty" style="font-size:1.1rem;margin:0">No questions yet.</p>
+        <ul class="hist" id="hist"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <footer>SAFEQUERY AI // READ-ONLY BY DESIGN // <span>PREPARED FOR TOMORROW... TODAY!</span></footer>
+  <div class="hazard"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var DEFAULT_API = location.protocol === "file:" ? "http://127.0.0.1:8000" : location.origin;
+  var TIMEOUT = 240000, MAX = 500;
+  var BLOCK_RE = /\[[A-Z_]{4,}\]|unsafe|block|refus|guardrail|not allowed|forbidden|policy/i;
+  var EXAMPLES = ["How many customers do we have?","What are our top 5 best-selling products?","Total net revenue by month in 2025","What is our return rate?","How many units are in stock?","Delete every order in the database."];
+  var VERDICT = {
+    answer:{t:"Answer ready",l:"Every check passed and confidence is above the answer threshold."},
+    warn:{t:"Answer with a warning",l:"A result was produced, but some signals were weak. Verify before relying on it."},
+    abstain_with_alternatives:{t:"Not confident enough to answer",l:"No answer is shown. Review the safe alternative queries below instead."}
+  };
+  var TAGS = {answer:"ANSWER",warn:"WARN",abstain_with_alternatives:"ABSTAIN",blocked:"BLOCKED",error:"ERROR"};
+  var KW = new Set(("select from where join left right inner outer full cross on group by order having limit offset as and or not in is null distinct case when then else end union all with asc desc count sum avg min max round coalesce nullif between like ilike exists cast interval date extract").split(" "));
+  var $ = function(id){ return document.getElementById(id); };
+  var S = {loading:false, history:[], memory:{}, outcome:null, sort:null};
+
+  /* ---------- tiny DOM helper (text only, never innerHTML) ---------- */
+  function h(tag, cls, kids, attrs){
+    var e = document.createElement(tag); if(cls) e.className = cls;
+    (Array.isArray(kids) ? kids : kids == null ? [] : [kids]).forEach(function(k){ e.appendChild(typeof k === "string" ? document.createTextNode(k) : k); });
+    if(attrs) Object.keys(attrs).forEach(function(a){ e.setAttribute(a, attrs[a]); });
+    return e;
+  }
+  function store(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  var isNum = function(v){ return typeof v === "number" && isFinite(v); };
+  var isStr = function(v){ return typeof v === "string"; };
+
+  /* ---------- API ---------- */
+  function normalize(raw){
+    var r = raw && typeof raw === "object" ? raw : {};
+    var sig = {}; if(r.confidence_signals && typeof r.confidence_signals === "object")
+      Object.keys(r.confidence_signals).forEach(function(k){ if(isNum(r.confidence_signals[k])) sig[k] = r.confidence_signals[k]; });
+    return {
+      decision: VERDICT[r.decision] ? r.decision : "warn",
+      confidence_score: isNum(r.confidence_score) ? r.confidence_score : 0,
+      calibration_ready: r.calibration_ready === true,
+      sql: isStr(r.sql) && r.sql.trim() ? r.sql : null,
+      explanation: isStr(r.explanation) ? r.explanation : null,
+      data: Array.isArray(r.data) ? r.data.filter(function(x){ return x && typeof x === "object"; }) : null,
+      confidence_signals: sig,
+      back_translated_question: isStr(r.back_translated_question) ? r.back_translated_question : null,
+      warnings: Array.isArray(r.warnings) ? r.warnings.filter(isStr) : [],
+      alternatives: Array.isArray(r.alternatives) ? r.alternatives.filter(isStr) : []
+    };
+  }
+  async function runQuery(base, question, strategy, demo){
+    if(demo) return new Promise(function(res){ setTimeout(function(){ res(demoResponse(question)); }, 1000); });
+    var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, TIMEOUT);
+    try{
+      var resp = await fetch(base.trim().replace(/\/+$/,"") + "/v1/query", {method:"POST", headers:{"Content-Type":"application/json"}, signal:ctl.signal, body:JSON.stringify({question:question, strategy:strategy})});
+      var body = null; try{ body = await resp.json(); }catch(e){}
+      if(!resp.ok){
+        var d = body && typeof body === "object" ? body.detail : undefined;
+        var detail = isStr(d) ? d : d ? JSON.stringify(d) : resp.statusText || "Unknown error";
+        return BLOCK_RE.test(detail) ? {kind:"blocked", detail:detail} : {kind:"error", status:resp.status, detail:detail};
+      }
+      return {kind:"ok", result:normalize(body)};
+    }catch(e){ return e && e.name === "AbortError" ? {kind:"timeout"} : {kind:"network"}; }
+    finally{ clearTimeout(timer); }
+  }
+  function mk(p){ return Object.assign({decision:"answer",confidence_score:0,calibration_ready:true,sql:null,explanation:null,data:[],confidence_signals:{},back_translated_question:null,warnings:[],alternatives:[]}, p); }
+  function demoResponse(question){
+    var q = question.toLowerCase();
+    if(/delete|drop|truncate|update/.test(q)) return {kind:"blocked", detail:"[MUTATION_INTENT] Write requests are not allowed."};
+    if(/stock|inventory/.test(q)) return {kind:"ok", result:mk({decision:"abstain_with_alternatives",confidence_score:.31,calibration_ready:false,alternatives:["SELECT p.name, COUNT(*) FROM core.products p GROUP BY p.name LIMIT 10"],warnings:["No inventory data exists in the schema"],confidence_signals:{schema_coverage:.2,self_reported_confidence:.35}})};
+    if(q.indexOf("return rate") >= 0) return {kind:"ok", result:mk({decision:"warn",confidence_score:.62,sql:"-- returns divided by delivered orders\nSELECT ROUND(COUNT(r.id)::numeric / NULLIF(COUNT(o.id), 0), 4) AS return_rate\nFROM core.orders o\nLEFT JOIN core.returns r ON r.order_id = o.id\nWHERE o.status = 'delivered';",explanation:"Share of delivered orders that have at least one return record.",data:[{return_rate:.0734}],confidence_signals:{back_translation_similarity:.71,agreement_ratio:.67,sanity_warning_count:1,self_reported_confidence:.6,schema_coverage:.9},back_translated_question:"What fraction of delivered orders were returned?",warnings:["Orders with multiple returns may be double counted"]})};
+    return {kind:"ok", result:mk({decision:"answer",confidence_score:.86,sql:"SELECT p.name AS product, c.name AS category, SUM(oi.quantity) AS units_sold, SUM(oi.quantity * oi.unit_price) AS revenue\nFROM core.order_items oi\nJOIN core.products p ON p.id = oi.product_id\nJOIN core.categories c ON c.id = p.category_id\nGROUP BY p.name, c.name\nORDER BY units_sold DESC\nLIMIT 6;",explanation:"Joins order lines to products and categories, sums units and revenue per product, and keeps the top six.",data:[{product:"Nuka-Cola Classic",category:"Beverages",units_sold:18420,revenue:92100.5},{product:"Sugar Bombs",category:"Breakfast",units_sold:12045,revenue:48180},{product:"Pork 'n' Beans",category:"Canned",units_sold:9870,revenue:29610.75},{product:"Fancy Lads Snack Cakes",category:"Snacks",units_sold:7311,revenue:21933},{product:"Cram",category:"Canned",units_sold:5402,revenue:13505},{product:"Purified Water",category:"Beverages",units_sold:4980,revenue:null}],confidence_signals:{back_translation_similarity:.88,agreement_ratio:1,sanity_warning_count:0,self_reported_confidence:.9,schema_coverage:1},back_translated_question:"Which products sold the most units, with their category and revenue?"})};
+  }
+
+  /* ---------- helpers ported from format.ts ---------- */
+  function sqlNodes(sql){
+    var re = /(--[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^']|'')*'?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)|(\s+|.)/g, m, out = [];
+    while((m = re.exec(sql))){
+      if(m[1]) out.push(h("span","cmt",m[1]));
+      else if(m[2]) out.push(h("span","str",m[2]));
+      else if(m[3]) out.push(h("span","num",m[3]));
+      else if(m[4] && KW.has(m[4].toLowerCase())) out.push(h("span","kw",m[4]));
+      else out.push(m[0]);
+    }
+    return out;
+  }
+  function columnsOf(rows){ var s = new Set(); rows.forEach(function(r){ Object.keys(r).forEach(function(k){ s.add(k); }); }); return Array.from(s); }
+  function sortRows(rows, col, dir){
+    var s = dir === "asc" ? 1 : -1;
+    return rows.slice().sort(function(a,b){
+      var x = a[col], y = b[col], xn = x == null, yn = y == null;
+      if(xn || yn) return xn && yn ? 0 : xn ? 1 : -1;
+      if(isNum(x) && isNum(y)) return (x-y)*s;
+      var nx = Number(x), ny = Number(y);
+      if(x !== "" && y !== "" && !isNaN(nx) && !isNaN(ny)) return (nx-ny)*s;
+      return String(x).localeCompare(String(y))*s;
+    });
+  }
+  function toCsv(rows, cols){
+    function e(v){ if(v == null) return ""; var s = typeof v === "object" ? JSON.stringify(v) : String(v); return /[",\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
+    return [cols.map(e).join(",")].concat(rows.map(function(r){ return cols.map(function(c){ return e(r[c]); }).join(","); })).join("\r\n");
+  }
+  function signalLabel(k){ var s = k.replace(/_/g," ").trim().toLowerCase(); return s.charAt(0).toUpperCase()+s.slice(1); }
+  function deriveTrail(o){
+    var q = {n:"Question received",s:"pass",l:"Received"};
+    function skip(a,b,c){ return [q,{n:"Policy check",s:a[0],l:a[1]},{n:"Read-only run",s:"skip",l:b},{n:"Confidence",s:"skip",l:c}]; }
+    if(o.kind === "blocked") return skip(["fail","Blocked"],"Not run","Not scored");
+    if(o.kind !== "ok") return skip(["skip","Unknown"],"Not run","Not scored");
+    var r = o.result, has = !!r.sql, ab = r.decision === "abstain_with_alternatives";
+    var c = r.decision === "answer" ? ["pass","High"] : r.decision === "warn" ? ["warn","Verify result"] : ["fail","Too low for answer"];
+    return [q,
+      has ? {n:"Policy check",s:"pass",l:"Passed"} : {n:"Policy check",s:"skip",l:"No query shown"},
+      has && !ab ? {n:"Read-only run",s:"pass",l:"Ran safely"} : {n:"Read-only run",s:"skip",l:"Not shown"},
+      {n:"Confidence",s:c[0],l:c[1]}];
+  }
+
+  /* ---------- components ---------- */
+  function panel(title, tag, kids){
+    var head = h("div","ph",[h("h2","",title)].concat(tag ? [h("span","eyebrow",tag)] : []));
+    return h("section","panel",[head].concat(kids), {"aria-label":title});
+  }
+  function copyBtn(text){
+    var b = h("button","btn y","COPY",{type:"button"});
+    b.addEventListener("click", function(){
+      try{ navigator.clipboard.writeText(text).then(function(){ b.textContent = "COPIED"; b.className = "btn g"; setTimeout(function(){ b.textContent = "COPY"; b.className = "btn y"; }, 1500); }); }catch(e){}
+    });
+    return b;
+  }
+  function sqlBlock(sql, label){
+    label = label || "SQL";
+    return h("div","sqlbox",[h("div","sqlh",[h("span","","> "+label), copyBtn(sql)]), h("pre","",[h("code","",sqlNodes(sql))],{tabindex:"0","aria-label":label})]);
+  }
+  function trailView(steps){
+    var sym = {pass:"✓",warn:"!",fail:"✕",skip:"–"};
+    var ol = h("ol","trail",steps.map(function(s,i){
+      return h("li","",[h("span","ico "+s.s,sym[s.s],{"aria-hidden":"true"}), h("span","",[h("small","","STEP "+(i+1)), h("em","",s.n), h("span","",s.l)])]);
+    }),{"aria-label":"Checkpoint trail"});
+    return ol;
+  }
+  function verdictView(r){
+    var v = VERDICT[r.decision], sc = Math.max(0, Math.min(1, r.confidence_score));
+    var tone = r.decision === "answer" ? "var(--green)" : r.decision === "warn" ? "var(--yellow)" : "var(--rust)";
+    var m = h("div","meter",[h("div","",[h("b","",r.confidence_score.toFixed(2)), h("span","","CONFIDENCE")])],{role:"meter","aria-valuemin":"0","aria-valuemax":"1","aria-valuenow":String(sc),"aria-label":"Confidence score"});
+    m.style.background = "conic-gradient("+tone+" "+(sc*360)+"deg, color-mix(in oklab, var(--cream) 15%, transparent) 0)";
+    var t = h("div","vt",[h("span","vk","VERDICT // "+r.decision.toUpperCase()), h("h2","",v.t), h("p","",v.l)]);
+    if(!r.calibration_ready) t.appendChild(h("p","cal","Calibration report not loaded, so fallback confidence thresholds are in use."));
+    return h("section","verdict",[m,t],{"aria-label":"Verdict"});
+  }
+  function tableView(rows){
+    var cols = columnsOf(rows), sorted = S.sort ? sortRows(rows, S.sort.col, S.sort.dir) : rows, shown = sorted.slice(0, MAX);
+    var numCol = function(c){ return rows.some(function(r){ return isNum(r[c]); }); };
+    var tr = h("tr","",cols.map(function(c){
+      var act = S.sort && S.sort.col === c;
+      var b = h("button","", c+" "+(act ? (S.sort.dir === "asc" ? "▲" : "▼") : "↕"),{type:"button"});
+      b.addEventListener("click", function(){ S.sort = act && S.sort.dir === "asc" ? {col:c,dir:"desc"} : {col:c,dir:"asc"}; renderOutcome(); });
+      return h("th", numCol(c) ? "r" : "", b, {scope:"col","aria-sort":act ? (S.sort.dir === "asc" ? "ascending" : "descending") : "none"});
+    }));
+    var body = shown.map(function(r){
+      return h("tr","",cols.map(function(c){ var v = r[c]; return h("td", isNum(v) ? "r" : "", v == null ? "—" : isNum(v) ? v.toLocaleString() : typeof v === "object" ? JSON.stringify(v) : String(v)); }));
+    });
+    var dl = h("button","btn y","DOWNLOAD CSV",{type:"button"});
+    dl.addEventListener("click", function(){
+      var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([toCsv(sorted, cols)],{type:"text/csv;charset=utf-8"}));
+      a.download = "safequery-results.csv"; a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); }, 500);
+    });
+    return panel("QUERY RESULTS", rows.length.toLocaleString()+" ROW"+(rows.length === 1 ? "" : "S"), [
+      h("div","tw",h("table","",[h("thead","",tr), h("tbody","",body)])),
+      h("div","foot",[h("span","", rows.length > MAX ? "Showing first "+MAX+" of "+rows.length.toLocaleString()+" rows. Download CSV for all." : "Click a column header to sort."), dl])
+    ]);
+  }
+  function signalsView(r){
+    var ent = Object.keys(r.confidence_signals);
+    if(!ent.length && !r.back_translated_question) return null;
+    var kids = [];
+    if(ent.length) kids.push(h("ul","sigs",ent.map(function(k){
+      var v = r.confidence_signals[k], li = h("li","sig",[h("div","",[h("span","",signalLabel(k)), h("span","",v.toFixed(2))])]);
+      if(v >= 0 && v <= 1){ var i = h("i"); i.style.width = (v*100)+"%"; li.appendChild(h("div","bar",i,{"aria-hidden":"true"})); }
+      return li;
+    })));
+    if(r.back_translated_question) kids.push(h("h3","","The SQL, read back as a question"), h("blockquote","","“"+r.back_translated_question+"”"));
+    return panel("WHY THIS CONFIDENCE", null, kids);
+  }
+  function errBox(title, detail){ return h("div","err",[h("p","","⚠ "+title)].concat(detail ? [h("p","",detail)] : []),{role:"alert"}); }
+
+  function outcomeView(o){
+    if(o.kind === "blocked") return [errBox("Blocked by the safety policy", o.detail)];
+    if(o.kind === "error") return [errBox("The API returned an error ("+o.status+")", o.detail)];
+    if(o.kind === "network") return [errBox("Could not reach the API","Check the API address in Settings, that the server is running, and that it allows CORS from this site.")];
+    if(o.kind === "timeout") return [errBox("The request timed out after 4 minutes","The server took too long. Try again, or try a simpler question.")];
+    var r = o.result, ab = r.decision === "abstain_with_alternatives", out = [verdictView(r)];
+    if(r.sql){ var kids = [sqlBlock(r.sql)]; if(r.explanation) kids.push(h("p","expl",r.explanation)); out.push(panel("VALIDATED SQL","READ-ONLY",kids)); }
+    if(!ab && r.data && r.data.length) out.push(tableView(r.data));
+    if(!ab && Array.isArray(r.data) && !r.data.length) out.push(panel("QUERY RESULTS",null,[h("p","","The query ran but returned no rows.")]));
+    if(r.warnings.length) out.push(panel("SANITY WARNINGS",String(r.warnings.length),[h("ul","warnl",r.warnings.map(function(w){ return h("li","",[h("i","","▶",{"aria-hidden":"true"}), h("span","","Warning: "+w)]); }))]));
+    if(r.alternatives.length) out.push(panel("ALTERNATIVE QUERIES THAT PASSED THE POLICY",null,[h("div","alts",r.alternatives.map(function(a,i){ return sqlBlock(a,"ALTERNATIVE "+(i+1)); }))]));
+    var sg = signalsView(r); if(sg) out.push(sg);
+    return out;
+  }
+  function renderOutcome(){
+    var out = $("out"); out.textContent = "";
+    if(S.loading){ out.appendChild(h("div","loadbox",[h("span","sq",null,{"aria-hidden":"true"}),"Okie-dokie processing your request"])); return; }
+    if(!S.outcome){ out.appendChild(h("div","ready",["> TERMINAL READY.", h("br"), "> Ask a question or pick an example above. Every query passes a policy check and runs read-only."])); return; }
+    out.appendChild(trailView(deriveTrail(S.outcome)));
+    outcomeView(S.outcome).forEach(function(n){ out.appendChild(n); });
+  }
+  function renderHistory(){
+    var ul = $("hist"); ul.textContent = "";
+    $("hempty").hidden = S.history.length > 0; $("clear").hidden = !S.history.length;
+    S.history.forEach(function(it){
+      var b = h("button","",[h("span","q",it.question), h("span","m",[h("span","",TAGS[it.decision]+(it.score !== null ? " · "+it.score.toFixed(2) : "")), h("span","",new Date(it.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}))])],{type:"button"});
+      b.addEventListener("click", function(){ $("q").value = it.question; syncRun(); var m = S.memory[it.id]; if(m){ S.outcome = m; S.sort = null; renderOutcome(); } });
+      ul.appendChild(h("li","",b));
+    });
+  }
+  function syncRun(){ $("run").disabled = S.loading || !$("q").value.trim(); }
+  function setRunLabel(){ var b = $("run"); b.textContent = ""; if(S.loading){ b.appendChild(h("span","sq",null,{"aria-hidden":"true"})); b.appendChild(document.createTextNode("Okie-dokie processing your request")); } else b.textContent = "RUN QUERY ›"; }
+
+  async function submit(){
+    var q = $("q").value.trim(); if(!q || S.loading) return;
+    S.loading = true; S.outcome = null; S.sort = null; setRunLabel(); syncRun(); renderOutcome();
+    var o = await runQuery($("api").value, q, $("strategy").value, $("demo").checked);
+    var id = Date.now()+"-"+S.history.length; S.memory[id] = o; S.outcome = o; S.loading = false;
+    setRunLabel(); syncRun(); renderOutcome();
+    S.history.unshift({id:id, question:q, ts:Date.now(), decision:o.kind === "ok" ? o.result.decision : o.kind === "blocked" ? "blocked" : "error", score:o.kind === "ok" ? o.result.confidence_score : null});
+    S.history = S.history.slice(0,15); store("safequery.history", JSON.stringify(S.history)); renderHistory();
+  }
+
+  /* ---------- init ---------- */
+  try{ var hs = JSON.parse(load("safequery.history") || "[]"); if(Array.isArray(hs)) S.history = hs.slice(0,15).filter(function(x){ return x && TAGS[x.decision]; }); }catch(e){}
+  var demoSaved = load("safequery.demo");
+  $("demo").checked = demoSaved === "1";           // change to: demoSaved !== "0" to start in demo mode
+  $("api").value = load("safequery.api") || DEFAULT_API;
+  function syncDemo(){ $("api").disabled = $("demo").checked; $("badge").classList.toggle("on", $("demo").checked); }
+  $("demo").addEventListener("change", function(){ store("safequery.demo", this.checked ? "1" : "0"); syncDemo(); });
+  $("api").addEventListener("input", function(){ store("safequery.api", this.value.trim().replace(/\/+$/,"")); });
+  EXAMPLES.forEach(function(t){ var c = h("button","chip",t,{type:"button"}); c.addEventListener("click", function(){ $("q").value = t; syncRun(); }); $("chips").appendChild(c); });
+  $("q").addEventListener("input", syncRun);
+  $("q").addEventListener("keydown", function(e){ if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); submit(); } });
+  $("form").addEventListener("submit", function(e){ e.preventDefault(); submit(); });
+  $("clear").addEventListener("click", function(){ S.history = []; store("safequery.history","[]"); renderHistory(); });
+  syncDemo(); renderHistory(); renderOutcome(); syncRun();
+})();
+</script>
+</body>
+</html>

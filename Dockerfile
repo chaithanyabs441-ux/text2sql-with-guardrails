@@ -23,4 +23,4 @@ FROM app AS frontend
 COPY frontend ./frontend
 RUN python -c "import pandas, requests, streamlit"
 EXPOSE 8501
-CMD ["streamlit", "run", "frontend/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+CMD ["python", "frontend/app.py"]
