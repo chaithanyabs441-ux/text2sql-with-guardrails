@@ -34,6 +34,7 @@ and a calibrated confidence score that decides whether to **answer**, **warn**, 
 - [Defense layers](#defense-layers)
 - [Evaluation and results](#evaluation-and-results)
 - [Development](#development)
+- [Project handoffs](#project-handoffs)
 - [Limitations and safety boundaries](#limitations-and-safety-boundaries)
 - [Repository map](#repository-map)
 - [License](#license)
@@ -41,6 +42,9 @@ and a calibrated confidence score that decides whether to **answer**, **warn**, 
 ## Features
 
 - **Fallout VideoGame/Series-themed web UI** with query history, example questions, result tables, and CSV download.
+- **Database-backed login and role authorization** for employees, analysts, and admins, with protected admin controls and query history.
+- **Full graphical schema view** with column types, primary/foreign-key markers, labeled relationship lines, and zoom controls.
+- **Login-screen dataset selection and import** for CSV and Excel workbooks, while keeping the bundled `core` sample dataset as the default.
 - **Schema-grounded SQL generation** using retrieved schema context, a business glossary, and examples.
 - **AST-wide SQL policy** (via `sqlglot`): `SELECT`-only, single statement, table and function allowlists,
   sensitive-column blocking, join/subquery limits, tautology and cartesian-join detection, and forced `LIMIT` clamping.
@@ -79,6 +83,9 @@ flowchart LR
    confidence, and schema coverage feed the calibrated model.
 6. Thresholds choose `answer`, `warn`, or `abstain_with_alternatives`.
 
+Every API operation that reads business data also requires a server-verified login. Role permissions and
+per-user dataset grants are checked by the API; the browser only controls presentation.
+
 ## Quick start
 
 **Prerequisites:** Docker Desktop and API keys for an OpenAI-compatible provider
@@ -91,8 +98,11 @@ cp .env.example .env          # PowerShell: Copy-Item .env.example .env
 # 2. Set GENERATOR_API_KEY and JUDGE_API_KEY in .env  (this file is git-ignored)
 
 # 3. Build and start PostgreSQL, the API, and the frontend
-docker compose up --build -d
+make
 ```
+
+`make` prints the clickable frontend address (`http://localhost:8501`) after Compose starts, along with
+the API docs and health URLs. If your terminal does not support clickable links, copy the printed URL.
 
 | Service | URL |
 | --- | --- |
@@ -102,6 +112,91 @@ docker compose up --build -d
 | PostgreSQL (host port) | `localhost:5433` |
 
 Stop everything with `docker compose down`.
+
+The first API start adds the authentication tables without dropping existing data. On a fresh database,
+the same tables are also created by `docker/rbac_init.sql`.
+
+### Set up the first administrator
+
+There is no default administrator account. After the services are running, set a temporary username and
+password in your shell and run the bootstrap command. Use a unique password with at least 12 characters;
+the application stores only an Argon2 hash.
+
+```bash
+export BOOTSTRAP_ADMIN_USERNAME='your-admin-name'
+read -s BOOTSTRAP_ADMIN_PASSWORD
+export BOOTSTRAP_ADMIN_PASSWORD
+make bootstrap-admin
+unset BOOTSTRAP_ADMIN_USERNAME BOOTSTRAP_ADMIN_PASSWORD
+```
+
+PowerShell:
+
+```powershell
+$env:BOOTSTRAP_ADMIN_USERNAME = "your-admin-name"
+$env:BOOTSTRAP_ADMIN_PASSWORD = Read-Host "Temporary administrator password"
+docker compose exec -e BOOTSTRAP_ADMIN_USERNAME -e BOOTSTRAP_ADMIN_PASSWORD api python -m t2s.auth.bootstrap
+Remove-Item Env:BOOTSTRAP_ADMIN_USERNAME, Env:BOOTSTRAP_ADMIN_PASSWORD
+```
+
+The API can also apply the additive migration explicitly with `make migrate`. Sign in at the frontend
+using the bootstrapped credentials. The session cookie is HTTP-only, SameSite strict, and expires after
+12 hours. Set `AUTH_COOKIE_SECURE=true` in `.env` when serving the app over HTTPS.
+
+### Roles and permissions
+
+| Role | Query responsibility | Other responsibilities |
+| --- | --- | --- |
+| Employee | Query the seven operational `core` tables: regions, categories, products, customers, orders, order items, and support tickets. | View the selected dataset schema and their own query history. Cannot query core workforce, finance, or returns tables. |
+| Data Analyst | Query every registered `core` table, including workforce, payments, and returns. Imported datasets are available to all signed-in roles. | View their own history and query activity analytics. Cannot manage accounts, roles, grants, or audit logs. |
+| Admin | Query every registered `core` table and every imported dataset table. | Create/manage accounts and roles, reset passwords, activate/deactivate users, grant/revoke `core` access, and view audit logs and query activity. |
+
+The backend maps permissions centrally (`src/t2s/auth/permissions.py`) and checks them at each protected
+endpoint. Changing a role in the browser or forging a request body does not grant access. Admins can
+create accounts, change roles, reset passwords, deactivate accounts, and grant or revoke access to `core`.
+Deactivation and password reset revoke existing sessions. Login attempts are rate limited. The API checks
+every table in generated SQL against the caller's role and dataset access before execution, including SQL
+generated for agreement checks and self-correction. Employees cannot query `payments`, `returns`, or
+`employees`; those tables are available to analysts and admins. Admin user and audit data is managed in the
+Admin Panel and is not exposed as a business SQL table.
+
+Data access follows this path: the signed-in user's server-side role and dataset grants determine which
+dataset/schema is available; the API builds schema context for that dataset; each generated SQL candidate
+is checked against the role's table allowlist and dataset table list; only an authorized, policy-approved
+query reaches the read-only database executor. A schema diagram is for discovery and does not itself grant
+query access. For `core`, the employee diagram marks restricted tables, and the API rejects SQL that uses
+them. Analysts get broader read access for business analysis. Admin privileges add account and access
+management; they do not make generated SQL writable.
+
+Authentication is implemented by this project with PostgreSQL-backed users and sessions; it does not use
+Firebase. Passwords are stored as Argon2 hashes. The browser receives an HTTP-only, SameSite strict cookie
+for a 12-hour session. The schema view shows all tables in a granted dataset, including employee-restricted
+tables, and marks those restrictions; query access is checked separately by the API.
+
+The local demo account workbook, if present, is `login ids/role-accounts.xlsx`. It is ignored by Git and may
+contain plaintext passwords; keep it private. The database is authoritative for account creation, roles, and
+passwords.
+
+The bundled `core` dataset remains the default and is never overwritten by file imports. On the signed-out
+login screen, anyone who can reach this local app can select an available dataset or import CSV/XLSX files.
+Each import is written to a separate generated PostgreSQL schema, appears in the selector for all signed-in
+users on this server, and is used as the schema context for query generation, SQL checks, execution, and the
+schema diagram. CSV/XLSX imports have a 200 MB combined upload limit, up to ten files, 30 tables, 500,000 rows
+per table, and 200 columns per table. Each CSV is one table; each worksheet in an XLSX file becomes a table.
+Imports can infer primary keys from a unique, non-null entity key such as `port_id`, `route_id`, or from `id`;
+when there is exactly one `*_id` column, it can serve as the entity key too. Foreign keys are inferred from
+matching `*_id` columns (including prefixed references such as `origin_port_id` to `ports.port_id`) only
+when types match and every non-null source value exists in the target key. The schema diagram displays the
+database's resulting PK/FK metadata and draws labeled connectors for those foreign keys. If a dataset was
+imported before key inference was improved, import its files again as a new dataset; existing imports are
+not retroactively altered. Imported data is shared with every signed-in role; do not upload private or
+confidential data. Imported datasets persist in PostgreSQL and currently have no delete UI.
+
+Core access still uses per-user grants and strict employee table limits. Imported datasets are currently
+available to all signed-in roles and allow each role to query every table in that dataset. Imports are
+accepted before sign-in and are shared on this server, so authentication does not make imported data private
+to its uploader. Dataset support does not include arbitrary live database connection strings, row-level
+security, per-user column access, or per-dataset grants for imported datasets.
 
 > **Heads up:** database init scripts only run when PostgreSQL first creates its data volume. If you have an
 > older `pgdata` volume, the read-only role and sample schema won't be re-created. Run
@@ -135,6 +230,7 @@ Settings are read from `.env` (see `.env.example`) via `src/t2s/config.py`.
 | `JUDGE_BASE_URL` | `https://api.groq.com/openai/v1` | Endpoint for the judge / back-translation model |
 | `JUDGE_API_KEY` | – | Judge key (**required**) |
 | `JUDGE_MODEL` | `qwen-2.5-coder-32b` | Judge model (a different model family adds diversity) |
+| `AUTH_COOKIE_SECURE` | `false` | Set to `true` when serving over HTTPS |
 | `MAX_RETRIES` | `3` | Retry budget for LLM calls |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
 
@@ -260,12 +356,48 @@ erDiagram
 - To re-apply the read-only role to an existing database volume without recreating tables, run
   `docker/readonly_role.sql`; it is safe to rerun.
 
+### Dataset selection and import
+
+The login screen lists the existing datasets and defaults to **SafeQuery sample database (`core`)**. Choose
+another dataset before signing in. Use **IMPORT CSV / EXCEL** to add one or more CSV files or an XLSX workbook;
+each CSV is a table and each workbook sheet is a table. Imported datasets are stored separately, selected
+immediately after import, and shared with every signed-in account on this server. Uploading does not erase
+or replace `core`. Only CSV and XLSX are accepted; database dumps, arbitrary SQL, and live connection strings
+are not accepted.
+
+For automatic primary-key badges and relationship lines, use a unique, non-empty entity key such as
+`port_id` in `ports`, `route_id` in `routes`, or the conventional `id`. Name references with the target
+key suffix, such as `customer_id` for `customers.id` or `origin_port_id` for `ports.port_id`. The importer
+adds a relationship only when types match and all non-null reference values resolve. Otherwise, the fields
+remain ordinary columns and the diagram has no connector for that relationship.
+
+### Schema view in the app
+
+After signing in, choose **DATABASE SCHEMA** to see the full schema as an ER diagram. Every table box includes
+its columns and database types, with PK/FK badges; labeled connectors show foreign-key relationships. Use
+the zoom buttons to inspect the diagram. Employees see restricted tables marked in rust, while the API
+continues to reject employee queries that reference those tables.
+
 ## Using the API
+
+### Sign in from the command line
+
+Create a session cookie before calling protected endpoints:
+
+```bash
+curl -c cookies.txt -H 'Content-Type: application/json' \
+  -d '{"username":"your-admin-name","password":"<your password>"}' \
+  http://localhost:8000/auth/login
+curl -b cookies.txt http://localhost:8000/auth/me
+```
+
+Do not store `cookies.txt` in the repository.
 
 ### `POST /v1/query`
 
 ```bash
 curl -s http://localhost:8000/v1/query \
+  -b cookies.txt \
   -H "Content-Type: application/json" \
   -d '{"question": "Which five products have the highest unit prices?",
        "strategy": "schema_glossary"}'
@@ -286,8 +418,15 @@ Response fields:
 | `alternatives` | Other candidate queries (populated on abstention) |
 | `calibration_ready` | Whether fitted calibration coefficients and thresholds were loaded |
 
-Other endpoints: `GET /v1/schema` (database schema), `GET /v1/history` (recent successful queries;
-result rows are not retained), and `GET /health`.
+Other endpoints: public `GET /datasets` lists available datasets and public `POST /datasets/import` accepts
+multipart form data (`display_name` and one or more `files`); authenticated `GET /v1/schema?dataset_id=...`
+returns the selected dataset schema and `GET /v1/history` returns recent queries for the signed-in user
+(result rows are not retained). Authentication endpoints are `POST /auth/login`, `POST /auth/logout`,
+`GET /auth/me`, and `GET /health`. The schema and query endpoints require a valid session. The bundled
+`core` dataset also requires a user grant; imported datasets are shared with signed-in users on this server.
+Admin routes under `/admin/` check their specific permissions server-side.
+
+The frontend uses the same-origin proxy, so the browser does not need direct cross-origin API access.
 
 If calibration artifacts are missing, the API falls back to conservative default thresholds and reports
 `calibration_ready: false`.
@@ -387,6 +526,27 @@ pytest
 ruff check .
 ```
 
+The test suite includes the original SQL policy tests plus auth/session invalidation, role escalation,
+dataset grant, and nested SQL table-scope checks.
+
+### Back up and restore
+
+Create a custom-format backup of the running PostgreSQL database:
+
+```bash
+docker compose exec -T db pg_dump -Fc -U t2s_user -d t2s_db > safequery-backup.dump
+```
+
+Restore into a new, empty database so the running database is not overwritten:
+
+```bash
+docker compose exec db createdb -U t2s_user t2s_restore
+docker compose exec -T db pg_restore -U t2s_user -d t2s_restore < safequery-backup.dump
+```
+
+The auth tables, users, grants, sessions, and audit events are in the same PostgreSQL database and are
+included in this backup. Treat the backup as sensitive; it contains password hashes and security history.
+
 Running the API and frontend outside Docker needs a PostgreSQL instance initialized with the scripts in
 `docker/` (`init.sql`, `readonly_role.sql`, `eval_seed.sql`) and a populated `.env`:
 
@@ -399,7 +559,31 @@ Test coverage includes the policy engine, a SQL attack suite, the LLM adapter, p
 retrieval, agreement, back-translation, calibration, evaluation metrics, and the API. CI runs lint and tests
 on every push and pull request.
 
+## Project handoffs
+
+- [Workflow quick guide](handoffs/workflow.md): startup, authentication, roles, imports, query flow, and security boundaries.
+- [Phase 1 handoff](handoffs/handoff_phase_1.md): earlier Windows/local PostgreSQL bring-up and environment-specific notes.
+- [Phase 2 handoff](handoffs/handoff_phase_2.md): current Docker Compose and Makefile workflow, database-backed roles, local account workbook, and full schema ER diagram.
+- [Phase 3 handoff](handoffs/handoff_phase_3.md): adaptive schema diagram, imported dataset key inference, and the current role/data-access model and security boundaries.
+
 ## Limitations and safety boundaries
+
+- **RBAC is an application-layer control.** The API performs deterministic permission checks and queries
+  use the separate read-only PostgreSQL role, but this experimental project has not undergone a security
+  audit or production hardening review.
+- **Dataset support includes `core` plus uploaded CSV/XLSX data.** Dynamic connections to other databases,
+  per-user grants for imported datasets, and row-level security are not implemented. Uploaded datasets are
+  shared with signed-in users and allow all tables for each role; do not import confidential data.
+- **The API uses its existing admin database URL for auth metadata and schema introspection.** Generated
+  SQL still executes only through `t2s_readonly`; auth tables are excluded from the SQL allowlist. Protect
+  database credentials and keep API/database ports on a trusted network.
+- **Initial admin bootstrap must be run manually.** No admin is created automatically. Protect the
+  bootstrap environment variables and remove them from the shell after use.
+- **Cookie security depends on deployment transport.** Local HTTP uses `AUTH_COOKIE_SECURE=false`; use
+  HTTPS and set it to `true` anywhere traffic leaves a trusted development machine.
+- **Compose database credentials are the repository's existing local demo credentials.** They are not
+  suitable for deployment on a shared or public network; replace the database credential setup before
+  using a non-local deployment.
 
 - **Confidence signals are not proof.** Agreement, back-translation similarity, model confidence, schema
   coverage, and calibration can all be wrong, and multiple candidates can share the same mistake.
@@ -409,13 +593,14 @@ on every push and pull request.
 - **SQL policy checks are not a complete security guarantee.** Policy gaps, configuration mistakes, database
   permissions, or dependency issues can change the protection provided.
 - **Read-only does not mean private.** A permitted `SELECT` can reveal any data the role can read. There is no
-  authentication, per-user authorization, or general PII redaction.
+  row-level policy, per-user column policy, or general PII redaction.
 - **The data is synthetic** and not representative of real business data.
 - **Prompts and schema context leave your machine** and are sent to the configured model provider. Don't use
   confidential data unless the provider is approved for it.
 - **Availability and cost depend on external services**: rate limits, network failures, model changes, and
   embedding downloads all affect latency and success.
-- **Not hardened for public deployment.** No authentication or per-user rate limiting. Keep it on a trusted network.
+- **Not hardened for public deployment.** Login attempts are rate limited, but query requests have no
+  per-user rate or cost quotas. Keep it on a trusted network.
 
 ## Repository map
 
@@ -423,6 +608,8 @@ on every push and pull request.
 | --- | --- |
 | `frontend/` | Static HTML/CSS/JS frontend and a small same-origin API proxy |
 | `src/t2s/api/` | FastAPI request handling |
+| `src/t2s/auth/` | Database-backed users, sessions, role permissions, and dataset grants |
+| `src/t2s/schema/introspector.py` | Reads table/column/key metadata for the selected dataset schema |
 | `src/t2s/generation/` | Prompt construction and SQL generation |
 | `src/t2s/schema/` | Schema introspection, retrieval, and the business glossary |
 | `src/t2s/guardrails/` | SQL parsing and policy enforcement |
@@ -433,6 +620,7 @@ on every push and pull request.
 | `eval/` | Golden set, red-team sets, evaluation scripts, and saved results |
 | `tests/` | Unit and integration tests |
 | `docs/design.md` | Threat model, trust boundaries, and design notes |
+| `handoffs/` | Environment and project handoff notes |
 
 ## License
 

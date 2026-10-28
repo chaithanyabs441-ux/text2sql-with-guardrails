@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     JUDGE_API_KEY: str = ""
     JUDGE_MODEL: str = "qwen-2.5-coder-32b" # Or whatever Qwen model is available on Groq
 
+    # Authentication cookies are HTTP-only and can be forced to HTTPS in deployments.
+    AUTH_COOKIE_SECURE: bool = False
+
     # App Settings
     MAX_RETRIES: int = 3
     LOG_LEVEL: str = "INFO"

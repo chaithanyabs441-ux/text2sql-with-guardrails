@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -150,6 +151,7 @@ class SQLPolicyEngine:
         max_subquery_depth: int = 3,
         dialect: str = "postgres",
         allowed_tables: Iterable[str] | None = None,
+        allowed_schema: str = "core",
         allowed_functions: Iterable[str] | None = None,
         sensitive_columns: Mapping[str, Iterable[str]] | None = None,
         enforce_sensitive_columns: bool = True,
@@ -177,6 +179,9 @@ class SQLPolicyEngine:
         self.max_joins = max_joins
         self.max_subquery_depth = max_subquery_depth
         self.dialect = dialect
+        if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", allowed_schema.lower()):
+            raise ValueError("Invalid allowed schema")
+        self.allowed_schema = allowed_schema.lower()
         table_names = (
             self.DEFAULT_ALLOWED_TABLES if allowed_tables is None else allowed_tables
         )
@@ -268,7 +273,7 @@ class SQLPolicyEngine:
                     continue
                 if (
                     table_name not in self.allowed_tables
-                    or schema_name not in {"", "core"}
+                    or schema_name not in {"", self.allowed_schema}
                     or catalog_name
                 ):
                     table_sql = table.sql(dialect=self.dialect)

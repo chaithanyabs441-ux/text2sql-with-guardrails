@@ -80,6 +80,9 @@ class SQLGenerator:
         strategy: str = "schema_glossary",
         database_error: str | None = None,
         temperature: float = 0.0,
+        schema_override: DatabaseSchema | None = None,
+        policy_engine: SQLPolicyEngine | None = None,
+        generic_dataset: bool = False,
     ) -> tuple[SQLGenerationResponse, str]:
         """Generate SQL at a sampling temperature, then enforce policy."""
         if _MUTATING_INTENT.search(question):
@@ -88,13 +91,14 @@ class SQLGenerator:
                 layer="NON_READ_ONLY_INTENT",
             )
 
-        schema = self.get_schema()
+        schema = schema_override or self.get_schema()
         relevant_schema = self.schema_retriever.filter_schema(question, schema)
         prompt = self.prompt_builder.build_generation_prompt(
             question,
             relevant_schema,
             strategy=strategy,
             database_error=database_error,
+            generic_dataset=generic_dataset,
         )
 
         try:
@@ -121,7 +125,7 @@ class SQLGenerator:
             raise ValueError("The model marked the question answerable but returned no SQL.")
 
         try:
-            safe_sql = self.policy_engine.validate(llm_response.sql)
+            safe_sql = (policy_engine or self.policy_engine).validate(llm_response.sql)
             return llm_response, safe_sql
         except Exception:
             logger.exception("LLM generated unsafe SQL")

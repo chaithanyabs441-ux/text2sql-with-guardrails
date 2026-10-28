@@ -3,14 +3,52 @@
 import json
 
 import pandas as pd
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 from t2s.api import main
+from t2s.auth.store import AuthStore
 from t2s.generation.generator import SQLGenerationResponse
 from t2s.schema.models import DatabaseSchema
 from t2s.verification.agreement import AgreementResult, CandidateOutcome
 
 client = TestClient(main.app)
+
+
+@pytest.fixture(autouse=True)
+def authenticated_api(monkeypatch):
+    store = AuthStore(
+        engine=create_engine(
+            "sqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+    )
+    store.ensure_schema()
+    admin = store.create_user("test-admin", "test-admin-password-123", "admin")
+    store.grant_dataset(admin["id"], "core", admin["id"])
+    monkeypatch.setattr(main, "auth_store", store)
+    monkeypatch.setattr(
+        main.agreement,
+        "evaluate",
+        lambda question, strategy="schema_glossary", sql_authorizer=None: AgreementResult(
+            candidate_count=3,
+            executed_count=3,
+            dominant_cluster_size=3,
+            agreement_ratio=1.0,
+            candidates=(),
+        ),
+    )
+    client.cookies.clear()
+    response = client.post(
+        "/auth/login",
+        json={"username": "test-admin", "password": "test-admin-password-123"},
+    )
+    assert response.status_code == 200
+    yield store
+    client.cookies.clear()
 
 
 def test_health_endpoint_reports_ready():
@@ -69,9 +107,6 @@ def test_schema_endpoint_returns_generator_schema(monkeypatch):
 
 
 def test_history_endpoint_returns_empty_list_when_no_queries_are_recorded():
-    with main._history_lock:
-        main._history.clear()
-
     response = client.get("/v1/history")
 
     assert response.status_code == 200
@@ -106,8 +141,6 @@ def test_query_response_is_recorded_in_history(monkeypatch):
     )
     monkeypatch.setattr(main.detector, "back_translate", lambda sql: "List customer ids")
     monkeypatch.setattr(main.detector, "calculate_similarity", lambda question, translated: 0.9)
-    with main._history_lock:
-        main._history.clear()
 
     response = client.post("/v1/query", json={"question": "List customer ids"})
     history = client.get("/v1/history")
@@ -145,7 +178,7 @@ def test_low_confidence_abstains_and_returns_only_safe_alternatives(monkeypatch)
     monkeypatch.setattr(
         main.agreement,
         "evaluate",
-        lambda question, strategy: AgreementResult(
+        lambda question, strategy, sql_authorizer=None: AgreementResult(
             candidate_count=3,
             executed_count=1,
             dominant_cluster_size=1,
@@ -239,6 +272,24 @@ def test_selfcorrect_retries_database_error_at_most_twice(monkeypatch):
     )
     monkeypatch.setattr(main.detector, "back_translate", lambda sql: "List customer ids")
     monkeypatch.setattr(main.detector, "calculate_similarity", lambda question, translated: 0.9)
+
+    def evaluate_candidates(question, strategy="schema_glossary", sql_authorizer=None):
+        for temperature in (0.0, 0.3, 0.7):
+            main.generator.generate(
+                question,
+                strategy=strategy,
+                database_error=None,
+                temperature=temperature,
+            )
+        return AgreementResult(
+            candidate_count=3,
+            executed_count=3,
+            dominant_cluster_size=3,
+            agreement_ratio=1.0,
+            candidates=(),
+        )
+
+    monkeypatch.setattr(main.agreement, "evaluate", evaluate_candidates)
 
     response = client.post(
         "/v1/query",

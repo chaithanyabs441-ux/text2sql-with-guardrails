@@ -21,9 +21,44 @@
     <span class="badge" id="badge"><b aria-hidden="true"></b>DEMO MODE</span>
   </div></header>
 
-  <main>
+  <main id="main-layout">
     <div class="col">
-      <form class="panel" id="form">
+      <section class="panel" id="login-panel" aria-label="Sign in">
+        <div class="ph"><h2>SECURE LOGIN</h2></div>
+        <p class="tip">Sign in to continue. First time here? Create the first admin from your terminal with <code>make bootstrap-admin</code>.</p>
+        <section class="dataset-picker" aria-label="Choose or import a dataset">
+          <h3>CHOOSE DATASET</h3>
+          <label class="lab" for="login-dataset">ACTIVE DATASET</label>
+          <select id="login-dataset" class="field"></select>
+          <form id="dataset-import-form" enctype="multipart/form-data" novalidate>
+            <h3>IMPORT CSV / EXCEL</h3>
+            <label class="lab" for="dataset-name">DATASET NAME</label>
+            <input id="dataset-name" class="field" maxlength="120" placeholder="e.g. Northwind sales" required>
+            <label class="lab" for="dataset-files" style="margin-top:10px">FILES (.CSV OR .XLSX, UP TO 200 MB TOTAL)</label>
+            <input id="dataset-files" class="field" type="file" accept=".csv,.xlsx" multiple required>
+            <p class="tip">Up to 200 MB total and 500,000 rows per table. Use an <code>id</code> column and matching <code>table_id</code> columns for relationship lines. Imports are separate from core and shared with every signed-in account on this server. Do not upload private or sensitive data.</p>
+            <button type="submit" class="btn y" id="dataset-import-button" style="margin-top:12px">IMPORT DATASET</button>
+            <p id="dataset-import-message" role="status"></p>
+          </form>
+        </section>
+        <form id="login-form">
+          <label for="login-username" class="lab">USERNAME</label>
+          <input id="login-username" class="field" autocomplete="username" required maxlength="120">
+          <label for="login-password" class="lab" style="margin-top:12px">PASSWORD</label>
+          <input id="login-password" class="field" type="password" autocomplete="current-password" required>
+          <button type="submit" class="btn run" style="margin-top:18px">SIGN IN</button>
+          <p id="login-message" role="alert"></p>
+        </form>
+      </section>
+      <section class="panel" id="identity-panel" hidden>
+        <div class="ph"><h2>ACCOUNT</h2><button class="btn" id="logout" type="button">LOG OUT</button></div>
+        <p id="identity-label"></p>
+      </section>
+      <div class="view-tabs" id="view-tabs" role="tablist" aria-label="Database views" hidden>
+        <button class="btn view-tab active" id="query-tab" type="button" role="tab" aria-selected="true">ASK DATA</button>
+        <button class="btn view-tab" id="schema-tab" type="button" role="tab" aria-selected="false">DATABASE SCHEMA</button>
+      </div>
+      <form class="panel" id="form" hidden>
         <label for="q" class="lab">ASK THE VAULT DATABASE</label>
         <textarea id="q" class="field" rows="4" placeholder="e.g. Which products sold the most last month?"></textarea>
         <div class="chips" id="chips" aria-label="Example questions"></div>
@@ -39,6 +74,40 @@
         <p class="tip">Tip: press Ctrl/Cmd + Enter to run.</p>
       </form>
       <div class="col" id="out" aria-live="polite"></div>
+      <section class="panel schema-panel" id="schema-panel" aria-label="Database schema" hidden>
+        <div class="ph"><h2 id="schema-title">DATABASE SCHEMA</h2><button class="btn" id="schema-refresh" type="button">REFRESH</button></div>
+        <p class="tip" id="schema-scope"></p>
+        <div id="schema-summary" class="schema-summary"></div>
+        <div class="schema-map-head"><h3>ENTITY RELATIONSHIP DIAGRAM</h3><span>PK PRIMARY KEY · FK FOREIGN KEY</span>
+          <div class="schema-zoom"><button class="btn" id="schema-zoom-out" type="button" aria-label="Zoom out">−</button><button class="btn" id="schema-zoom-in" type="button" aria-label="Zoom in">+</button><button class="btn" id="schema-zoom-reset" type="button">FIT</button></div>
+        </div>
+        <div class="schema-diagram-wrap"><svg id="schema-diagram" class="schema-diagram" role="img" aria-label="Entity relationship diagram showing all core tables, columns, and foreign key connections"></svg></div>
+        <p class="schema-map-note" id="schema-map-note"></p>
+        <div id="schema-grid" class="schema-grid" aria-live="polite"></div>
+      </section>
+      <section class="panel" id="admin-panel" hidden aria-label="Administration">
+        <div class="ph"><h2>ADMIN PANEL</h2><button type="button" class="btn" id="admin-refresh">REFRESH</button></div>
+        <h3>USER MANAGEMENT</h3>
+        <form id="create-user-form">
+          <label class="lab" for="new-username">USERNAME</label><input class="field" id="new-username" required minlength="3" maxlength="120">
+          <label class="lab" for="new-password" style="margin-top:10px">INITIAL PASSWORD (12+ CHARACTERS)</label><input class="field" id="new-password" type="password" required minlength="12">
+          <label class="lab" for="new-role" style="margin-top:10px">ROLE</label>
+          <select class="field" id="new-role"><option value="employee">Employee</option><option value="analyst">Data Analyst</option><option value="admin">Admin</option></select>
+          <p class="tip">Employee: operational tables. Analyst: all core tables and personal query analytics. Admin: all core tables and user/audit controls.</p>
+          <label class="chk"><input type="checkbox" id="new-core-access" checked>Grant core dataset access</label>
+          <button class="btn y" type="submit" style="margin-top:10px">CREATE USER</button>
+        </form>
+        <ul id="admin-users" class="hist"></ul>
+        <h3>DATASET MANAGEMENT</h3>
+        <button class="btn y" id="register-core" type="button">REGISTER CORE DATASET</button>
+        <ul id="admin-datasets" class="hist"></ul>
+        <h3>DATASET SCHEMA</h3><pre id="dataset-schema" style="white-space:pre-wrap;max-height:18rem;overflow:auto"></pre>
+        <h3>AUDIT LOG</h3><pre id="audit-events" class="field" style="white-space:pre-wrap;max-height:20rem;overflow:auto"></pre>
+      </section>
+      <section class="panel" id="analytics-panel" hidden>
+        <div class="ph"><h2>QUERY ACTIVITY</h2><button type="button" class="btn" id="analytics-refresh">LOAD</button></div>
+        <pre id="query-activity" style="white-space:pre-wrap;max-height:18rem;overflow:auto"></pre>
+      </section>
     </div>
     <aside class="col">
       <section class="panel" aria-label="Settings">
@@ -48,7 +117,7 @@
         <label class="chk"><input type="checkbox" id="demo">Demo mode (no network calls)</label>
       </section>
       <section class="panel" aria-label="History">
-        <div class="ph"><h2>HISTORY</h2><button type="button" class="btn" id="clear" hidden>CLEAR HISTORY</button></div>
+        <div class="ph"><h2>HISTORY</h2><button type="button" class="btn" id="clear" hidden>CLEAR VIEW</button></div>
         <p class="tm" id="hempty" style="font-size:1.1rem;margin:0">No questions yet.</p>
         <ul class="hist" id="hist"></ul>
       </section>
@@ -63,7 +132,7 @@
 (function(){
   "use strict";
   var DEFAULT_API = location.protocol === "file:" ? "http://127.0.0.1:8000" : location.origin;
-  var TIMEOUT = 240000, MAX = 500;
+  var TIMEOUT = 240000, MAX = 500, UPLOAD_LIMIT_BYTES = 200 * 1024 * 1024;
   var BLOCK_RE = /\[[A-Z_]{4,}\]|unsafe|block|refus|guardrail|not allowed|forbidden|policy/i;
   var EXAMPLES = ["How many customers do we have?","What are our top 5 best-selling products?","Total net revenue by month in 2025","What is our return rate?","How many units are in stock?","Delete every order in the database."];
   var VERDICT = {
@@ -74,7 +143,7 @@
   var TAGS = {answer:"ANSWER",warn:"WARN",abstain_with_alternatives:"ABSTAIN",blocked:"BLOCKED",error:"ERROR"};
   var KW = new Set(("select from where join left right inner outer full cross on group by order having limit offset as and or not in is null distinct case when then else end union all with asc desc count sum avg min max round coalesce nullif between like ilike exists cast interval date extract").split(" "));
   var $ = function(id){ return document.getElementById(id); };
-  var S = {loading:false, history:[], memory:{}, outcome:null, sort:null};
+  var S = {loading:false, history:[], memory:{}, outcome:null, sort:null, user:null, schemaLoaded:false, schemaLoading:false, schemaZoom:1, datasets:[], datasetId:load("safequery.dataset")||"core"};
 
   /* ---------- tiny DOM helper (text only, never innerHTML) ---------- */
   function h(tag, cls, kids, attrs){
@@ -85,6 +154,174 @@
   }
   function store(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
   function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  async function apiRequest(path, options){
+    var base=$("api").value.trim().replace(/\/+$/, ""),opts=options||{},headers=Object.assign({},opts.headers||{});
+    if(!(opts.body instanceof FormData))headers["Content-Type"]="application/json";
+    var response=await fetch(base+path,Object.assign({credentials:"same-origin"},opts,{headers:headers}));
+    var body=null;try{body=await response.json();}catch(e){}
+    if(!response.ok){var detail=body&&body.detail;throw new Error(typeof detail==="string"?detail:"Request failed ("+response.status+")");}
+    return body;
+  }
+  async function loadDatasets(preferred){
+    try{
+      S.datasets=await apiRequest("/datasets");var select=$("login-dataset"),chosen=preferred||S.datasetId;select.textContent="";
+      S.datasets.forEach(function(ds){select.appendChild(h("option","",ds.display_name+" ("+ds.tables.length+" tables)",{value:ds.dataset_id}));});
+      if(!S.datasets.some(function(ds){return ds.dataset_id===chosen;}))chosen="core";
+      select.value=chosen;S.datasetId=chosen;store("safequery.dataset",chosen);
+    }catch(err){$("dataset-import-message").textContent="Could not load datasets: "+err.message;}
+  }
+  function setLoginMessage(message){ $("login-message").textContent = message || ""; }
+  function showSignedIn(user){
+    S.user=user; $("login-panel").hidden=true; $("identity-panel").hidden=false; $("form").hidden=false;
+    var selected=S.datasets.find(function(ds){return ds.dataset_id===S.datasetId;}),scope;
+    if(S.datasetId!=="core")scope="all tables in "+(selected?selected.display_name:"selected dataset");
+    else scope=user.role==="employee"?"operational core tables only":user.role==="analyst"?"all core tables + query analytics":"all core tables + admin controls";
+    $("identity-label").textContent=user.username+" — "+user.role+" — "+scope;
+    $("view-tabs").hidden=false; selectDataView("query");
+    $("admin-panel").hidden=user.role!=="admin";
+    $("analytics-panel").hidden=!(user.permissions||[]).includes("view_query_analytics");
+    refreshOwnHistory(); if(user.role==="admin") refreshAdmin();
+  }
+  function showSignedOut(){
+    S.user=null; $("login-panel").hidden=false; $("identity-panel").hidden=true; $("form").hidden=true;
+    $("view-tabs").hidden=true; $("schema-panel").hidden=true; $("out").hidden=true;
+    $("main-layout").classList.remove("schema-mode");
+    $("admin-panel").hidden=true; $("analytics-panel").hidden=true;
+    S.schemaLoaded=false; $("schema-grid").textContent=""; $("schema-summary").textContent="";
+    S.history=[]; renderHistory();
+  }
+  function selectDataView(view){
+    var showSchema=view==="schema";
+    $("main-layout").classList.toggle("schema-mode",showSchema);
+    $("query-tab").classList.toggle("active",!showSchema);
+    $("schema-tab").classList.toggle("active",showSchema);
+    $("query-tab").setAttribute("aria-selected",String(!showSchema));
+    $("schema-tab").setAttribute("aria-selected",String(showSchema));
+    $("form").hidden=showSchema; $("out").hidden=showSchema; $("schema-panel").hidden=!showSchema;
+    if(showSchema) loadSchema();
+  }
+  async function loadSchema(force){
+    if(S.schemaLoading||(!force&&S.schemaLoaded)||!S.user)return;
+    S.schemaLoading=true; $("schema-summary").textContent="CONTACTING THE VAULT DATABASE..."; $("schema-grid").textContent="";
+    try{
+      var selected=S.datasets.find(function(ds){return ds.dataset_id===S.datasetId;});
+      $("schema-title").textContent=(selected?selected.display_name:"DATABASE")+" SCHEMA";
+      var schema=await apiRequest("/v1/schema?dataset_id="+encodeURIComponent(S.datasetId));
+      var tables=Array.isArray(schema.tables)?schema.tables:[];
+      var columnCount=0; tables.forEach(function(t){columnCount+=Array.isArray(t.columns)?t.columns.length:0;});
+      $("schema-summary").textContent=tables.length+" TABLES  //  "+columnCount+" COLUMNS  //  ROLE: "+S.user.role.toUpperCase();
+      var isCore=S.datasetId==="core";
+      $("schema-scope").textContent=isCore&&S.user.role==="employee"?"Full core schema shown. Rust tables are locked for employee queries; the API still enforces these role limits.":"Full dataset schema shown. Lines connect foreign keys to their referenced tables.";
+      renderSchemaDiagram(tables,S.datasetId!=="core");
+      $("schema-map-note").textContent=isCore&&S.user.role==="employee"?"RUST TABLES ARE VISIBLE FOR REFERENCE AND LOCKED FOR EMPLOYEE QUERIES. HOVER OVER A CONNECTOR TO SEE ITS FOREIGN-KEY COLUMNS.":"ALL TABLES IN THIS DATASET ARE AVAILABLE TO YOUR ROLE. HOVER OVER A CONNECTOR TO SEE ITS FOREIGN-KEY COLUMNS.";
+      if(!tables.length)$("schema-grid").appendChild(h("p","schema-empty","No schema tables are available for this role."));
+      S.schemaLoaded=true;
+    }catch(err){
+      $("schema-summary").textContent="SCHEMA UNAVAILABLE";
+      $("schema-grid").appendChild(h("p","schema-empty",err.message));
+    }finally{S.schemaLoading=false;}
+  }
+  function renderSchemaDiagram(tables,generic){
+    var ns="http://www.w3.org/2000/svg",svg=$("schema-diagram"),positions={},metrics=new Map(),head=generic?36:31,meta=generic?28:22,row=generic?32:27,canvasW=1230,canvasH=1600;
+    function typeLabel(column){return String(column.data_type||"unknown").toLowerCase().replace(/^character varying/,"varchar").replace(/^integer$/,"int").replace(/^numeric/,"numeric").replace(/\s+/g," ");}
+    function measure(table){
+      var columns=table.columns||[],typeChars=0,nameChars=0;
+      columns.forEach(function(column){typeChars=Math.max(typeChars,typeLabel(column).length);nameChars=Math.max(nameChars,String(column.name||"").length);});
+      var typeWidth=Math.max(132,typeChars*7+20),nameWidth=Math.max(145,nameChars*7+24),keyWidth=56;
+      return {width:Math.max(340,typeWidth+nameWidth+keyWidth,String(table.name||"").length*9+28),typeWidth:typeWidth,keyWidth:keyWidth};
+    }
+    function heightOf(table){return nodeHeight(table,head,meta,row);}
+    tables.forEach(function(table){metrics.set(table.name.toLowerCase(),generic?measure(table):{width:340,typeWidth:132,keyWidth:56});});
+    if(generic){
+      var originalIndex=new Map(),byName=new Map(),rankCache=new Map();tables.forEach(function(table,index){originalIndex.set(table.name.toLowerCase(),index);byName.set(table.name.toLowerCase(),table);});
+      function rank(table,visiting){var name=table.name.toLowerCase();if(rankCache.has(name))return rankCache.get(name);if(visiting.has(name))return 0;visiting.add(name);var parents=(table.foreign_keys||[]).map(function(fk){return byName.get((fk.referred_table||"").toLowerCase());}).filter(function(parent){return parent&&parent.name.toLowerCase()!==name;});var value=parents.length?Math.min(12,Math.max.apply(null,parents.map(function(parent){return rank(parent,visiting)+1;}))):0;visiting.delete(name);rankCache.set(name,value);return value;}
+      var layers=new Map();tables.forEach(function(table){var level=rank(table,new Set());if(!layers.has(level))layers.set(level,[]);layers.get(level).push(table);});
+      var levels=Array.from(layers.keys()).sort(function(a,b){return a-b;}),gapX=78,gapY=76,margin=30,rowWidths=[],rowHeights=[];
+      levels.forEach(function(level,index){var layer=layers.get(level);rowWidths[index]=layer.reduce(function(sum,t){return sum+metrics.get(t.name.toLowerCase()).width;},0)+gapX*Math.max(0,layer.length-1);rowHeights[index]=layer.reduce(function(max,t){return Math.max(max,heightOf(t));},0);});
+      canvasW=Math.max(900,Math.max.apply(null,[0].concat(rowWidths))+margin*2);var y=24;
+      levels.forEach(function(level,index){var layer=layers.get(level);layer.sort(function(a,b){function barycenter(t){var parents=(t.foreign_keys||[]).map(function(fk){var name=(fk.referred_table||"").toLowerCase(),p=positions[name];return p?p[0]+metrics.get(name).width/2:null;}).filter(function(x){return x!==null;});return parents.length?parents.reduce(function(sum,x){return sum+x;},0)/parents.length:Infinity;}return barycenter(a)-barycenter(b)||originalIndex.get(a.name.toLowerCase())-originalIndex.get(b.name.toLowerCase());});var x=(canvasW-rowWidths[index])/2;layer.forEach(function(table){var name=table.name.toLowerCase();positions[name]=[x,y];x+=metrics.get(name).width+gapX;});y+=rowHeights[index]+gapY;});
+      canvasH=tables.length?Math.max(120,y-gapY+36):120;
+    }else positions={regions:[455,24],employees:[70,220],customers:[455,220],categories:[850,310],support_tickets:[70,620],orders:[455,620],products:[850,665],payments:[255,1040],order_items:[650,1040],returns:[650,1370]};
+    S.diagramWidth=canvasW;S.diagramHeight=canvasH;svg.classList.toggle("schema-diagram-generic",generic);svg.style.width="100%";svg.style.aspectRatio=canvasW+" / "+canvasH;svg.textContent="";svg.setAttribute("viewBox","0 0 "+canvasW+" "+canvasH);svg.setAttribute("aria-label",generic?"Entity relationship diagram for the selected dataset":"Entity relationship diagram for the core database");
+    function el(tag,attrs,parent){var n=document.createElementNS(ns,tag);Object.keys(attrs||{}).forEach(function(k){n.setAttribute(k,attrs[k]);});(parent||svg).appendChild(n);return n;}
+    function text(parent,x,y,cls,value,anchor){var n=el("text",{x:x,y:y,class:cls,"text-anchor":anchor||"start"},parent);n.textContent=value;return n;}
+    var defs=el("defs",{}),marker=el("marker",{id:"schema-arrow",viewBox:"0 0 10 10",refX:"8",refY:"5",markerWidth:"5",markerHeight:"5",orient:"auto"},defs);el("path",{d:"M 0 0 L 10 5 L 0 10 z",class:"schema-arrow"},marker);
+    var byName=new Map();tables.forEach(function(t){byName.set(t.name.toLowerCase(),t);});
+    tables.forEach(function(table){var source=table.name.toLowerCase(),p=positions[source];if(!p)return;(table.foreign_keys||[]).forEach(function(fk){var target=(fk.referred_table||"").toLowerCase(),q=positions[target];if(!q||!byName.has(target))return;
+      var label=(fk.constrained_columns||[]).join(", "),sourceColumns=table.columns||[],targetTable=byName.get(target),targetColumns=targetTable.columns||[],sourceIndex=sourceColumns.findIndex(function(c){return (fk.constrained_columns||[]).some(function(name){return name.toLowerCase()===String(c.name).toLowerCase();});}),targetIndex=targetColumns.findIndex(function(c){return (fk.referred_columns||[]).some(function(name){return name.toLowerCase()===String(c.name).toLowerCase();});});
+      var sourceWidth=metrics.get(source).width,targetWidth=metrics.get(target).width,sourceColumn=sourceColumns[Math.max(0,sourceIndex)],targetColumn=targetColumns[Math.max(0,targetIndex)],sx=p[0]+metrics.get(source).typeWidth+Math.min(metrics.get(source).width-metrics.get(source).typeWidth-metrics.get(source).keyWidth,Math.max(8,String(sourceColumn&&sourceColumn.name||"").length*3.5)),sy=p[1]+head+meta+Math.max(0,sourceIndex)*row+row/2,tx=q[0]+metrics.get(target).typeWidth+Math.min(targetWidth-metrics.get(target).typeWidth-metrics.get(target).keyWidth,Math.max(8,String(targetColumn&&targetColumn.name||"").length*3.5)),ty=q[1]+head+meta+Math.max(0,targetIndex)*row+row/2;
+      var siblings=(table.foreign_keys||[]).filter(function(other){return (other.referred_table||"").toLowerCase()===target;}),siblingIndex=siblings.indexOf(fk),targetSpread=(siblingIndex-(siblings.length-1)/2)*14;tx+=targetSpread;
+      var d;if(source===target){var right=p[0]+sourceWidth+24;sx=right;tx=right;d="M "+sx+" "+sy+" C "+(right+24)+" "+sy+" "+(right+24)+" "+ty+" "+tx+" "+ty;}
+      else{var sourceHeight=heightOf(table),targetHeight=heightOf(targetTable),sourceCenterY=p[1]+sourceHeight/2,targetCenterY=q[1]+targetHeight/2,sourceCenterX=p[0]+sourceWidth/2,targetCenterX=q[0]+targetWidth/2;
+        if(Math.abs(targetCenterY-sourceCenterY)>=Math.abs(targetCenterX-sourceCenterX)){
+          sy=targetCenterY<sourceCenterY?p[1]:p[1]+sourceHeight;ty=targetCenterY<sourceCenterY?q[1]+targetHeight:q[1];var midY=(sy+ty)/2+targetSpread;d="M "+sx+" "+sy+" L "+sx+" "+midY+" L "+tx+" "+midY+" L "+tx+" "+ty;
+        }else{
+          sx=targetCenterX>sourceCenterX?p[0]+sourceWidth:p[0];tx=targetCenterX>sourceCenterX?q[0]:q[0]+targetWidth;var midX=(sx+tx)/2;d="M "+sx+" "+sy+" L "+midX+" "+sy+" L "+midX+" "+ty+" L "+tx+" "+ty;
+        }
+      }
+      el("path",{d:d,class:"schema-edge-halo"});var edge=el("path",{d:d,class:"schema-edge","marker-end":"url(#schema-arrow)","aria-label":label+" references "+target});el("title",{},edge).textContent=label+" → "+target+"."+((fk.referred_columns||[]).join(", "));
+    });});
+    tables.forEach(function(table){var name=table.name.toLowerCase(),p=positions[name];if(!p)return;var columns=table.columns||[],tableMetrics=metrics.get(name),w=tableMetrics.width,h=heightOf(table),locked=!generic&&S.user.role==="employee"&&["employees","payments","returns"].includes(name),g=el("g",{class:"schema-node"+(locked?" schema-node-locked":"")});
+      el("rect",{x:p[0],y:p[1],width:w,height:h,rx:"1",class:"schema-node-frame"},g);el("rect",{x:p[0],y:p[1],width:w,height:head,class:"schema-node-head"},g);
+      text(g,p[0]+w/2,p[1]+(generic?24:21),"schema-node-name",table.name.toUpperCase(),"middle");
+      el("rect",{x:p[0],y:p[1]+head,width:w,height:meta,class:"schema-node-meta"},g);
+      text(g,p[0]+8,p[1]+head+(generic?18:15),"schema-node-meta-text","TYPE", "start");text(g,p[0]+tableMetrics.typeWidth+8,p[1]+head+(generic?18:15),"schema-node-meta-text","COLUMN", "start");text(g,p[0]+w-8,p[1]+head+(generic?18:15),"schema-node-meta-text","KEY", "end");
+      columns.forEach(function(col,i){var y=p[1]+head+meta+i*row,kind=typeLabel(col),keyWidth=tableMetrics.keyWidth;
+        el("rect",{x:p[0],y:y,width:w,height:row,class:i%2?"schema-col-row-alt":"schema-col-row"},g);el("line",{x1:p[0],y1:y+row,x2:p[0]+w,y2:y+row,class:"schema-col-rule"},g);el("line",{x1:p[0]+tableMetrics.typeWidth,y1:y,x2:p[0]+tableMetrics.typeWidth,y2:y+row,class:"schema-col-rule"},g);el("line",{x1:p[0]+w-keyWidth,y1:y,x2:p[0]+w-keyWidth,y2:y+row,class:"schema-col-rule"},g);
+        text(g,p[0]+6,y+(generic?21:18),"schema-col-type-svg",kind,"start");text(g,p[0]+tableMetrics.typeWidth+8,y+(generic?21:18),"schema-col-name-svg",col.name,"start");
+        if(col.is_primary_key)text(g,p[0]+w-keyWidth/2,y+(generic?21:18),"schema-key-pk","PK","middle");else if((table.foreign_keys||[]).some(function(fk){return (fk.constrained_columns||[]).some(function(c){return c.toLowerCase()===col.name.toLowerCase();});}))text(g,p[0]+w-keyWidth/2,y+(generic?21:18),"schema-key-fk","FK","middle");
+      });
+    });
+    setSchemaZoom(S.schemaZoom);
+  }
+  function nodeHeight(table,head,meta,row){return head+meta+row*(table.columns||[]).length;}
+  function setSchemaZoom(zoom){S.schemaZoom=Math.max(.7,Math.min(1.6,zoom));var svg=$("schema-diagram"),width=S.diagramWidth||1180,height=S.diagramHeight||1600,w=width/S.schemaZoom,h=height/S.schemaZoom;svg.setAttribute("viewBox",((width-w)/2)+" "+((height-h)/2)+" "+w+" "+h);}
+  async function refreshAuth(){
+    try{ showSignedIn(await apiRequest("/auth/me")); }
+    catch(e){
+      showSignedOut();
+      $("login-panel").scrollIntoView({block:"start"});
+    }
+  }
+  async function refreshOwnHistory(){
+    try{
+      var rows=await apiRequest("/v1/history");
+      S.history=rows.map(function(x,i){return {id:"server-"+i,question:x.question,ts:new Date(x.created_at).getTime(),decision:x.decision||"answer",score:x.confidence_score};}).slice(0,15);
+      renderHistory();
+    }catch(e){}
+  }
+  async function refreshAdmin(){
+    try{
+      var users=await apiRequest("/admin/users"), datasets=await apiRequest("/admin/datasets"), events=await apiRequest("/admin/audit-logs");
+      var list=$("admin-users"); list.textContent="";
+      users.forEach(function(u){
+        var role=document.createElement("select"); role.className="field";
+        [["employee","Employee"],["analyst","Data Analyst"],["admin","Admin"]].forEach(function(pair){var o=document.createElement("option");o.value=pair[0];o.textContent=pair[1];role.appendChild(o);}); role.value=u.role;
+        var save=h("button","btn y","SAVE ROLE",{type:"button"}); save.addEventListener("click",async function(){try{await apiRequest("/admin/users/"+u.id+"/role",{method:"POST",body:JSON.stringify({role:role.value})});await refreshAdmin();}catch(e){alert(e.message);}});
+        var active=h("button","btn",u.is_active?"DEACTIVATE":"ACTIVATE",{type:"button"}); active.addEventListener("click",async function(){
+          if(u.is_active&&!confirm("Deactivate "+u.username+"? Their active sessions will be revoked."))return;
+          try{await apiRequest("/admin/users/"+u.id+"/"+(u.is_active?"deactivate":"activate"),{method:"POST",body:"{}"});await refreshAdmin();}catch(e){alert(e.message);}
+        });
+        var grant=h("button","btn",(u.datasets||[]).includes("core")?"REVOKE CORE":"GRANT CORE",{type:"button"}); grant.addEventListener("click",async function(){
+          var op=(u.datasets||[]).includes("core")?"revoke":"grant";
+          try{await apiRequest("/admin/users/"+u.id+"/datasets/core/"+op,{method:"POST",body:"{}"});await refreshAdmin();}catch(e){alert(e.message);}
+        });
+        var reset=h("button","btn","RESET PASSWORD",{type:"button"}); reset.addEventListener("click",async function(){
+          var password=prompt("Enter a new password of at least 12 characters for "+u.username);
+          if(password===null)return;
+          try{await apiRequest("/admin/users/"+u.id+"/password",{method:"POST",body:JSON.stringify({password:password})});alert("Password updated; existing sessions were revoked.");}
+          catch(e){alert(e.message);}
+        });
+        list.appendChild(h("li","hist-item",[h("p","",u.username+" · "+(u.is_active?"active":"inactive")+" · datasets: "+(u.datasets||[]).join(", ")),role,save,active,grant,reset]));
+      });
+      var ds=$("admin-datasets"); ds.textContent=""; datasets.forEach(function(d){
+        var view=h("button","btn","VIEW SCHEMA",{type:"button"});
+        view.addEventListener("click",async function(){try{$("dataset-schema").textContent=JSON.stringify(await apiRequest("/v1/schema?dataset_id="+encodeURIComponent(d.dataset_id)),null,2);}catch(err){$("dataset-schema").textContent=err.message;}});
+        ds.appendChild(h("li","",[h("p","",d.display_name+" ("+d.dataset_id+"): "+d.tables.join(", ")),view]));
+      });
+      $("audit-events").textContent=JSON.stringify(events,null,2);
+    }catch(e){ $("audit-events").textContent=e.message; }
+  }
   var isNum = function(v){ return typeof v === "number" && isFinite(v); };
   var isStr = function(v){ return typeof v === "string"; };
 
@@ -107,14 +344,15 @@
     };
   }
   async function runQuery(base, question, strategy, demo){
-    if(demo) return new Promise(function(res){ setTimeout(function(){ res(demoResponse(question)); }, 1000); });
+    if(demo&&S.datasetId==="core") return new Promise(function(res){ setTimeout(function(){ res(demoResponse(question)); }, 1000); });
     var ctl = new AbortController(), timer = setTimeout(function(){ ctl.abort(); }, TIMEOUT);
     try{
-      var resp = await fetch(base.trim().replace(/\/+$/,"") + "/v1/query", {method:"POST", headers:{"Content-Type":"application/json"}, signal:ctl.signal, body:JSON.stringify({question:question, strategy:strategy})});
+      var resp = await fetch(base.trim().replace(/\/+$/,"") + "/v1/query", {method:"POST", credentials:"same-origin", headers:{"Content-Type":"application/json"}, signal:ctl.signal, body:JSON.stringify({question:question, strategy:strategy,dataset_id:S.datasetId})});
       var body = null; try{ body = await resp.json(); }catch(e){}
       if(!resp.ok){
         var d = body && typeof body === "object" ? body.detail : undefined;
         var detail = isStr(d) ? d : d ? JSON.stringify(d) : resp.statusText || "Unknown error";
+        if(resp.status === 403 && /dataset/i.test(detail)) detail += " Ask an admin to grant access to the selected dataset.";
         return BLOCK_RE.test(detail) ? {kind:"blocked", detail:detail} : {kind:"error", status:resp.status, detail:detail};
       }
       return {kind:"ok", result:normalize(body)};
@@ -274,29 +512,79 @@
   function setRunLabel(){ var b = $("run"); b.textContent = ""; if(S.loading){ b.appendChild(h("span","sq",null,{"aria-hidden":"true"})); b.appendChild(document.createTextNode("Okie-dokie processing your request")); } else b.textContent = "RUN QUERY ›"; }
 
   async function submit(){
+    if(!S.user){showSignedOut();return;}
     var q = $("q").value.trim(); if(!q || S.loading) return;
     S.loading = true; S.outcome = null; S.sort = null; setRunLabel(); syncRun(); renderOutcome();
     var o = await runQuery($("api").value, q, $("strategy").value, $("demo").checked);
     var id = Date.now()+"-"+S.history.length; S.memory[id] = o; S.outcome = o; S.loading = false;
     setRunLabel(); syncRun(); renderOutcome();
     S.history.unshift({id:id, question:q, ts:Date.now(), decision:o.kind === "ok" ? o.result.decision : o.kind === "blocked" ? "blocked" : "error", score:o.kind === "ok" ? o.result.confidence_score : null});
-    S.history = S.history.slice(0,15); store("safequery.history", JSON.stringify(S.history)); renderHistory();
+    S.history = S.history.slice(0,15); renderHistory(); refreshOwnHistory();
   }
 
   /* ---------- init ---------- */
-  try{ var hs = JSON.parse(load("safequery.history") || "[]"); if(Array.isArray(hs)) S.history = hs.slice(0,15).filter(function(x){ return x && TAGS[x.decision]; }); }catch(e){}
   var demoSaved = load("safequery.demo");
   $("demo").checked = demoSaved === "1";           // change to: demoSaved !== "0" to start in demo mode
   $("api").value = load("safequery.api") || DEFAULT_API;
   function syncDemo(){ $("api").disabled = $("demo").checked; $("badge").classList.toggle("on", $("demo").checked); }
   $("demo").addEventListener("change", function(){ store("safequery.demo", this.checked ? "1" : "0"); syncDemo(); });
   $("api").addEventListener("input", function(){ store("safequery.api", this.value.trim().replace(/\/+$/,"")); });
+  $("query-tab").addEventListener("click",function(){selectDataView("query");});
+  $("schema-tab").addEventListener("click",function(){selectDataView("schema");});
+  $("schema-refresh").addEventListener("click",function(){loadSchema(true);});
+  $("schema-zoom-in").addEventListener("click",function(){setSchemaZoom(S.schemaZoom*1.18);});
+  $("schema-zoom-out").addEventListener("click",function(){setSchemaZoom(S.schemaZoom/1.18);});
+  $("schema-zoom-reset").addEventListener("click",function(){setSchemaZoom(1);});
+  $("login-dataset").addEventListener("change",function(){S.datasetId=this.value;store("safequery.dataset",S.datasetId);S.schemaLoaded=false;S.schemaZoom=1;});
+  function checkUploadSize(){
+    var files=Array.from($("dataset-files").files),total=files.reduce(function(sum,file){return sum+file.size;},0),message=$("dataset-import-message");
+    if(total>UPLOAD_LIMIT_BYTES){message.textContent="Selected files total "+(total/1024/1024).toFixed(1)+" MB. The upload limit is 200 MB; choose smaller files.";return false;}
+    message.textContent=total?"Selected "+(total/1024/1024).toFixed(1)+" MB.":"";return true;
+  }
+  $("dataset-files").addEventListener("change",checkUploadSize);
+  $("dataset-import-form").addEventListener("submit",async function(e){
+    e.preventDefault();var message=$("dataset-import-message"),button=$("dataset-import-button"),files=Array.from($("dataset-files").files),name=$("dataset-name").value.trim();
+    if(!files.length){message.textContent="No file selected. Nothing to import. Sign in to use the active dataset selected above.";return;}
+    if(!name){message.textContent="Enter a dataset name before importing.";return;}
+    if(!checkUploadSize())return;message.textContent="Uploading and importing...";button.disabled=true;
+    try{var form=new FormData();form.append("display_name",name);files.forEach(function(file){form.append("files",file,file.name);});
+      var created=await apiRequest("/datasets/import",{method:"POST",body:form});$("dataset-name").value="";$("dataset-files").value="";S.schemaZoom=1;await loadDatasets(created.dataset_id);message.textContent="Imported "+created.display_name+" with "+created.tables.length+" tables. Automatically selected for your next sign-in and query.";
+    }catch(err){message.textContent="Import failed: "+err.message;}finally{button.disabled=false;}
+  });
   EXAMPLES.forEach(function(t){ var c = h("button","chip",t,{type:"button"}); c.addEventListener("click", function(){ $("q").value = t; syncRun(); }); $("chips").appendChild(c); });
+  $("login-form").addEventListener("submit",async function(e){
+    e.preventDefault(); setLoginMessage("");
+    try{
+      var user=await apiRequest("/auth/login",{method:"POST",body:JSON.stringify({username:$("login-username").value,password:$("login-password").value})});
+      $("login-password").value=""; showSignedIn(await apiRequest("/auth/me"));
+    }catch(err){ setLoginMessage(err.message); }
+  });
+  $("logout").addEventListener("click",async function(){
+    try{await apiRequest("/auth/logout",{method:"POST",body:"{}"});}catch(e){}
+    showSignedOut(); setLoginMessage("Signed out.");
+  });
+  $("create-user-form").addEventListener("submit",async function(e){
+    e.preventDefault();
+    try{
+      var created=await apiRequest("/admin/users",{method:"POST",body:JSON.stringify({username:$("new-username").value,password:$("new-password").value,role:$("new-role").value})});
+      if($("new-core-access").checked) await apiRequest("/admin/users/"+created.id+"/datasets/core/grant",{method:"POST",body:"{}"});
+      $("new-password").value=""; $("new-username").value=""; await refreshAdmin();
+    }catch(err){alert(err.message);}
+  });
+  $("admin-refresh").addEventListener("click",refreshAdmin);
+  $("register-core").addEventListener("click",async function(){
+    try{await apiRequest("/admin/datasets",{method:"POST",body:JSON.stringify({dataset_id:"core"})});await refreshAdmin();}
+    catch(err){alert(err.message);}
+  });
+  $("analytics-refresh").addEventListener("click",async function(){
+    try{$("query-activity").textContent=JSON.stringify(await apiRequest("/admin/query-activity"),null,2);}
+    catch(err){$("query-activity").textContent=err.message;}
+  });
   $("q").addEventListener("input", syncRun);
   $("q").addEventListener("keydown", function(e){ if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); submit(); } });
   $("form").addEventListener("submit", function(e){ e.preventDefault(); submit(); });
-  $("clear").addEventListener("click", function(){ S.history = []; store("safequery.history","[]"); renderHistory(); });
-  syncDemo(); renderHistory(); renderOutcome(); syncRun();
+  $("clear").addEventListener("click", function(){ S.history = []; renderHistory(); });
+  syncDemo(); renderHistory(); renderOutcome(); syncRun(); loadDatasets().then(refreshAuth);
 })();
 </script>
 </body>

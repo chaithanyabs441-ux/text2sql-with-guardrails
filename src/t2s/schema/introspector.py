@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, inspect
 from t2s.config import settings
 from t2s.schema.models import DatabaseSchema, TableModel, ColumnModel, ForeignKeyModel
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -10,14 +11,15 @@ class SchemaIntrospector:
         self.engine = create_engine(db_url)
         self.inspector = inspect(self.engine)
 
-    def extract_schema(self) -> DatabaseSchema:
-        """Extracts all tables, columns, and FKs from the public and core schemas."""
+    def extract_schema(self, schema_name: str = "core") -> DatabaseSchema:
+        """Extract tables, columns, and FKs from one named schema."""
         tables = []
-        
-        # We specifically target our 'core' schema where the business data lives
-        for table_name in self.inspector.get_table_names(schema="core"):
+
+        if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", schema_name):
+            raise ValueError("Invalid schema name")
+        for table_name in self.inspector.get_table_names(schema=schema_name):
             columns = []
-            for col in self.inspector.get_columns(table_name, schema="core"):
+            for col in self.inspector.get_columns(table_name, schema=schema_name):
                 columns.append(ColumnModel(
                     name=col["name"],
                     data_type=str(col["type"]),
@@ -26,7 +28,7 @@ class SchemaIntrospector:
                 ))
                 
             # Get primary keys
-            pk_constraint = self.inspector.get_pk_constraint(table_name, schema="core")
+            pk_constraint = self.inspector.get_pk_constraint(table_name, schema=schema_name)
             pks = pk_constraint.get("constrained_columns", [])
             for c in columns:
                 if c.name in pks:
@@ -34,7 +36,7 @@ class SchemaIntrospector:
                     
             # Get foreign keys
             fks = []
-            for fk in self.inspector.get_foreign_keys(table_name, schema="core"):
+            for fk in self.inspector.get_foreign_keys(table_name, schema=schema_name):
                 fks.append(ForeignKeyModel(
                     constrained_columns=fk["constrained_columns"],
                     referred_table=fk["referred_table"],

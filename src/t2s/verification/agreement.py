@@ -1,11 +1,12 @@
 """Generate SQL candidates and measure agreement over executed result sets."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
 from t2s.generation.generator import SQLGenerator
 from t2s.guardrails.policy import SQLPolicyEngine
+from t2s.schema.models import DatabaseSchema
 from t2s.sandbox.executor import ExecutionSandbox
 from t2s.verification.result_comparison import result_sets_equal
 
@@ -62,6 +63,11 @@ class MultiCandidateAgreement:
         question: str,
         strategy: str = "schema_glossary",
         database_error: str | None = None,
+        sql_authorizer: Callable[[str], None] | None = None,
+        schema_override: DatabaseSchema | None = None,
+        policy: SQLPolicyEngine | None = None,
+        schema_name: str = "core",
+        generic_dataset: bool = False,
     ) -> AgreementResult:
         """Generate, policy-check, and sandbox-execute every candidate."""
         outcomes: list[CandidateOutcome] = []
@@ -75,6 +81,9 @@ class MultiCandidateAgreement:
                     strategy=strategy,
                     database_error=database_error,
                     temperature=temperature,
+                    schema_override=schema_override,
+                    policy_engine=policy,
+                    generic_dataset=generic_dataset,
                 )
                 if not response.answerable:
                     outcomes.append(CandidateOutcome(temperature, "unanswerable"))
@@ -82,16 +91,16 @@ class MultiCandidateAgreement:
                 if not generated_sql:
                     outcomes.append(CandidateOutcome(temperature, "no_sql"))
                     continue
-                safe_sql = self.policy.validate(generated_sql)
+                safe_sql = (policy or self.policy).validate(generated_sql)
+                if sql_authorizer is not None:
+                    sql_authorizer(safe_sql)
             except Exception as exc:
                 outcomes.append(
-                    CandidateOutcome(
-                        temperature, "generation_or_policy_error", error=str(exc)
-                    )
+                    CandidateOutcome(temperature, "generation_or_policy_error", error=str(exc))
                 )
                 continue
 
-            frame, latency_ms, error = self.sandbox.execute(safe_sql)
+            frame, latency_ms, error = self.sandbox.execute(safe_sql, schema_name=schema_name)
             if error:
                 outcomes.append(
                     CandidateOutcome(

@@ -13,6 +13,7 @@ services:
       - ./docker/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
       - ./docker/readonly_role.sql:/docker-entrypoint-initdb.d/02_readonly_role.sql:ro
       - ./docker/eval_seed.sql:/docker-entrypoint-initdb.d/03_eval_seed.sql:ro
+      - ./docker/rbac_init.sql:/docker-entrypoint-initdb.d/04_rbac.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U t2s_user -d t2s_db"]
       interval: 5s

@@ -22,3 +22,4 @@ htmlcov/
 # Local application data
 .cache/
 logs/
+/login ids/role-accounts.xlsx

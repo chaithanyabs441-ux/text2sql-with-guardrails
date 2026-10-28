@@ -93,6 +93,7 @@ ORDER BY month"""
         schema: DatabaseSchema,
         strategy: str = "schema_glossary",
         database_error: str | None = None,
+        generic_dataset: bool = False,
     ) -> str:
         """Build a prompt for the requested prompting strategy."""
         if strategy not in self.STRATEGIES:
@@ -100,7 +101,7 @@ ORDER BY month"""
             raise ValueError(f"Unknown prompt strategy '{strategy}'. Choose from: {choices}")
 
         context = []
-        if strategy != "zero_shot":
+        if strategy != "zero_shot" and not generic_dataset:
             glossary = self._format_glossary()
             if glossary:
                 context.append(glossary)
@@ -117,6 +118,13 @@ ORDER BY month"""
 
         context_text = "\n\n".join(context)
         schema_text = self._format_schema(schema)
+        region_rule = (
+            "5. For a count requested for each region, return every region, including regions\n"
+            "   with no matching rows. Start from regions and LEFT JOIN the counted table;\n"
+            "   put filters on the counted table in the JOIN condition so zero counts remain.\n"
+            if not generic_dataset
+            else ""
+        )
         return f"""You are an expert PostgreSQL data analyst.
 Write one safe SQL query to answer the user's question using only the supplied schema.
 
@@ -130,9 +138,7 @@ RULES:
 2. If the schema cannot answer the question, set "answerable" to false.
 3. If the question is highly ambiguous, set "ambiguity_flag" to true.
 4. Use case-insensitive matching for text filters.
-5. For a count requested for each region, return every region, including regions
-   with no matching rows. Start from regions and LEFT JOIN the counted table;
-   put filters on the counted table in the JOIN condition so zero counts remain.
+{region_rule}
 USER QUESTION: {question}
 
 Respond in exactly this JSON format:

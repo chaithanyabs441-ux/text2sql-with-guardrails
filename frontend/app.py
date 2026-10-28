@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -10,7 +11,7 @@ from urllib.request import Request, urlopen
 
 FRONTEND_DIR = Path(__file__).resolve().parent
 API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
-MAX_REQUEST_BYTES = 1_000_000
+MAX_REQUEST_BYTES = 201 * 1024 * 1024
 
 
 class FrontendHandler(SimpleHTTPRequestHandler):
@@ -19,47 +20,89 @@ class FrontendHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(FRONTEND_DIR), **kwargs)
 
+    def end_headers(self) -> None:
+        # The frontend contains the auth gate. Do not let browsers keep an older
+        # pre-auth page after the server has been upgraded.
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
     def do_GET(self):
-        if urlsplit(self.path).path == "/":
+        path = urlsplit(self.path).path
+        if path == "/":
             self.path = "/index.html"
+        elif self._is_api_path(path, "GET"):
+            return self._proxy("GET", self.path)
         return super().do_GET()
 
     def do_POST(self):
-        if urlsplit(self.path).path != "/v1/query":
+        if not self._is_api_path(urlsplit(self.path).path, "POST"):
             self.send_error(404, "Not found")
             return
+        return self._proxy("POST", self.path)
 
+    @staticmethod
+    def _is_api_path(path: str, method: str) -> bool:
+        if method == "GET":
+            return path in {"/auth/me", "/v1/schema", "/v1/history", "/datasets"} or bool(
+                re.fullmatch(
+                    r"/admin/(?:users|datasets|audit-logs|query-activity)(?:/[a-zA-Z0-9_-]+)*", path
+                )
+            )
+        return path in {"/auth/login", "/auth/logout", "/v1/query", "/datasets/import"} or bool(
+            re.fullmatch(r"/admin/(?:users|datasets)(?:/[a-zA-Z0-9_-]+)*", path)
+        )
+
+    def _proxy(self, method: str, target: str) -> None:
         try:
             content_length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
             self._send_json(400, {"detail": "Invalid Content-Length header."})
             return
-        if content_length <= 0 or content_length > MAX_REQUEST_BYTES:
-            self._send_json(413, {"detail": "Request body must be under 1 MB."})
+        if content_length > MAX_REQUEST_BYTES or (
+            method == "POST" and content_length <= 0 and urlsplit(target).path != "/auth/logout"
+        ):
+            self._send_json(413, {"detail": "Request body must be under 201 MB."})
             return
 
-        body = self.rfile.read(content_length)
+        body = self.rfile.read(content_length) if content_length else None
+        headers = {"Content-Type": self.headers.get("Content-Type", "application/json")}
+        if self.headers.get("Cookie"):
+            headers["Cookie"] = self.headers["Cookie"]
         request = Request(
-            f"{API_BASE_URL}/v1/query",
+            f"{API_BASE_URL}{target}",
             data=body,
-            headers={"Content-Type": self.headers.get("Content-Type", "application/json")},
-            method="POST",
+            headers=headers,
+            method=method,
         )
         try:
             with urlopen(request, timeout=240) as response:
                 payload = response.read()
-                self._send(response.status, payload, response.headers.get_content_type())
+                self._send(
+                    response.status,
+                    payload,
+                    response.headers.get_content_type(),
+                    response.headers.get_all("Set-Cookie", []),
+                )
         except HTTPError as exc:
-            self._send(exc.code, exc.read(), exc.headers.get_content_type())
+            self._send(
+                exc.code,
+                exc.read(),
+                exc.headers.get_content_type(),
+                exc.headers.get_all("Set-Cookie", []),
+            )
         except (URLError, TimeoutError, OSError) as exc:
             reason = getattr(exc, "reason", exc)
             self._send_json(502, {"detail": f"Could not reach the query API: {reason}"})
 
-    def _send(self, status: int, body: bytes, content_type: str) -> None:
+    def _send(
+        self, status: int, body: bytes, content_type: str, cookies: list[str] | None = None
+    ) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        for cookie in cookies or []:
+            self.send_header("Set-Cookie", cookie)
         self.end_headers()
         self.wfile.write(body)
 
