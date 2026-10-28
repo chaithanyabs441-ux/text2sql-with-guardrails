@@ -76,14 +76,19 @@ class MultiCandidateAgreement:
 
         for index, temperature in enumerate(self.temperatures):
             try:
+                generation_options: dict[str, Any] = {}
+                if schema_override is not None:
+                    generation_options["schema_override"] = schema_override
+                if policy is not None:
+                    generation_options["policy_engine"] = policy
+                if generic_dataset:
+                    generation_options["generic_dataset"] = True
                 response, generated_sql = self.generator.generate(
                     question,
                     strategy=strategy,
                     database_error=database_error,
                     temperature=temperature,
-                    schema_override=schema_override,
-                    policy_engine=policy,
-                    generic_dataset=generic_dataset,
+                    **generation_options,
                 )
                 if not response.answerable:
                     outcomes.append(CandidateOutcome(temperature, "unanswerable"))
@@ -100,7 +105,12 @@ class MultiCandidateAgreement:
                 )
                 continue
 
-            frame, latency_ms, error = self.sandbox.execute(safe_sql, schema_name=schema_name)
+            if schema_name == "core":
+                frame, latency_ms, error = self.sandbox.execute(safe_sql)
+            else:
+                frame, latency_ms, error = self.sandbox.execute(
+                    safe_sql, schema_name=schema_name
+                )
             if error:
                 outcomes.append(
                     CandidateOutcome(

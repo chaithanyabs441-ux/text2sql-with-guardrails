@@ -849,7 +849,12 @@ def process_query(
             )
 
         authorize_sql_dataset(safe_sql, user, dataset)
-        df, _latency_ms, error = sandbox.execute(safe_sql, schema_name=dataset["schema_name"])
+        if dataset["schema_name"] == "core":
+            df, _latency_ms, error = sandbox.execute(safe_sql)
+        else:
+            df, _latency_ms, error = sandbox.execute(
+                safe_sql, schema_name=dataset["schema_name"]
+            )
         retry_count = 0
         while (
             error
@@ -869,12 +874,27 @@ def process_query(
                     detail="Question is unanswerable with the current schema.",
                 )
             authorize_sql_dataset(safe_sql, user, dataset)
-            df, _latency_ms, error = sandbox.execute(safe_sql, schema_name=dataset["schema_name"])
+            if dataset["schema_name"] == "core":
+                df, _latency_ms, error = sandbox.execute(safe_sql)
+            else:
+                df, _latency_ms, error = sandbox.execute(
+                    safe_sql, schema_name=dataset["schema_name"]
+                )
 
         warnings = checker.check(df, error)
         back_translated_question = detector.back_translate(safe_sql)
         back_translation_similarity = detector.calculate_similarity(
             req.question, back_translated_question
+        )
+        agreement_options = (
+            {
+                "schema_override": dataset_schema,
+                "policy": dataset_policy,
+                "schema_name": dataset["schema_name"],
+                "generic_dataset": True,
+            }
+            if generic_dataset
+            else {}
         )
         agreement_result = agreement.evaluate(
             req.question,
@@ -882,10 +902,7 @@ def process_query(
             sql_authorizer=lambda candidate_sql: authorize_sql_dataset(
                 candidate_sql, user, dataset
             ),
-            schema_override=dataset_schema,
-            policy=dataset_policy,
-            schema_name=dataset["schema_name"],
-            generic_dataset=generic_dataset,
+            **agreement_options,
         )
         agreement_ratio = agreement_result.agreement_ratio
         schema_coverage = _schema_coverage(safe_sql, response.tables_used)
