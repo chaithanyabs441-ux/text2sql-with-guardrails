@@ -7,10 +7,10 @@ import re
 import threading
 import unicodedata
 import uuid
-from functools import lru_cache
-from io import BytesIO
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -31,10 +31,10 @@ from t2s.auth.store import AuthStore
 from t2s.config import settings
 from t2s.generation.generator import SQLGenerator
 from t2s.guardrails.exceptions import UnsafeQueryError
-from t2s.sandbox.executor import ExecutionSandbox
-from t2s.schema.models import DatabaseSchema
-from t2s.schema.introspector import SchemaIntrospector
 from t2s.guardrails.policy import SQLPolicyEngine
+from t2s.sandbox.executor import ExecutionSandbox
+from t2s.schema.introspector import SchemaIntrospector
+from t2s.schema.models import DatabaseSchema
 from t2s.verification.abstention import AbstentionThresholds, choose_decision
 from t2s.verification.agreement import MultiCandidateAgreement
 from t2s.verification.back_translation import HallucinationDetector
@@ -252,7 +252,10 @@ def _infer_uploaded_keys(conn: Any, schema_name: str, table_names: list[str]) ->
     """Infer common id-style primary/foreign keys when uploaded values prove valid."""
     inspector = inspect(conn)
     columns_by_table = {
-        table: {column["name"]: column for column in inspector.get_columns(table, schema=schema_name)}
+        table: {
+            column["name"]: column
+            for column in inspector.get_columns(table, schema=schema_name)
+        }
         for table in table_names
     }
 
@@ -343,7 +346,9 @@ def _infer_uploaded_keys(conn: Any, schema_name: str, table_names: list[str]) ->
                 # dataset prefixes such as ship_ports.port_id and customers.id.
                 reference = column[:-3]
 
-                def target_match(candidate: tuple[str, str]) -> tuple[bool, bool]:
+                def target_match(
+                    candidate: tuple[str, str], reference: str = reference
+                ) -> tuple[bool, bool]:
                     target, target_key = candidate
                     entity = target_key[:-3] if target_key.endswith("_id") else singular(target)
                     token = entity.split("_")[-1]
@@ -432,7 +437,7 @@ def available_datasets() -> list[dict[str, Any]]:
 @app.post("/datasets/import", status_code=201)
 async def import_dataset(
     display_name: str = Form(min_length=1, max_length=120),
-    files: list[UploadFile] = File(min_length=1, max_length=10),
+    files: list[UploadFile] = File(min_length=1, max_length=10),  # noqa: B008
 ) -> dict[str, Any]:
     """Import CSV/XLSX tables into a new isolated schema without changing core."""
     frames: list[tuple[str, Any]] = []
@@ -460,7 +465,7 @@ async def import_dataset(
     if not display_name:
         raise HTTPException(status_code=422, detail="Enter a dataset name.")
     table_names = _unique_names([name for name, _ in frames])
-    for (original_name, frame), table_name in zip(frames, table_names, strict=True):
+    for (original_name, frame), _table_name in zip(frames, table_names, strict=True):
         if frame.empty or len(frame) > MAX_IMPORTED_ROWS_PER_TABLE:
             raise HTTPException(
                 status_code=400,
@@ -472,7 +477,10 @@ async def import_dataset(
             )
         frame.columns = _unique_names([str(column) for column in frame.columns])
         if any(len(column.encode("utf-8")) > 63 for column in frame.columns):
-            raise HTTPException(status_code=400, detail=f"{original_name} has an invalid column name.")
+            raise HTTPException(
+                status_code=400,
+                detail=f"{original_name} has an invalid column name.",
+            )
 
     dataset_id = "upload_" + uuid.uuid4().hex[:16]
     schema_name = dataset_id
@@ -491,7 +499,9 @@ async def import_dataset(
                 )
             _infer_uploaded_keys(conn, schema_name, table_names)
             conn.execute(text(f'GRANT USAGE ON SCHEMA "{schema_name}" TO t2s_readonly'))
-            conn.execute(text(f'GRANT SELECT ON ALL TABLES IN SCHEMA "{schema_name}" TO t2s_readonly'))
+            conn.execute(
+                text(f'GRANT SELECT ON ALL TABLES IN SCHEMA "{schema_name}" TO t2s_readonly')
+            )
         result = auth_store.register_imported_dataset(
             dataset_id, display_name.strip(), schema_name, table_names
         )
@@ -501,7 +511,10 @@ async def import_dataset(
     except Exception as exc:
         with engine.begin() as conn:
             conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema_name}" CASCADE'))
-        raise HTTPException(status_code=400, detail="Dataset import failed; check the file data and try again.") from exc
+        raise HTTPException(
+            status_code=400,
+            detail="Dataset import failed; check the file data and try again.",
+        ) from exc
     finally:
         engine.dispose()
     auth_store.audit(

@@ -6,8 +6,8 @@ from typing import Any
 
 from t2s.generation.generator import SQLGenerator
 from t2s.guardrails.policy import SQLPolicyEngine
-from t2s.schema.models import DatabaseSchema
 from t2s.sandbox.executor import ExecutionSandbox
+from t2s.schema.models import DatabaseSchema
 from t2s.verification.result_comparison import result_sets_equal
 
 DEFAULT_TEMPERATURES = (0.0, 0.3, 0.7)

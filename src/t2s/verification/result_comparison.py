@@ -54,7 +54,7 @@ def _as_decimal(value: Any) -> Decimal | None:
     value = _normalize_cell(value)
     if isinstance(value, bool):
         return None
-    if not isinstance(value, (int, float, Decimal)):
+    if not isinstance(value, int | float | Decimal):
         return None
     try:
         return Decimal(str(value))

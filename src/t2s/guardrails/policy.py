@@ -251,7 +251,7 @@ class SQLPolicyEngine:
         # Restrict the statement's root to query expressions. The AST-wide
         # forbidden-node scan above separately catches writes nested in a query.
         if self.enforce_select_only and not isinstance(
-            ast, (exp.Select, exp.Union, exp.Subquery)
+            ast, exp.Select | exp.Union | exp.Subquery
         ):
             self._reject(
                 "SELECT_ONLY",
@@ -286,7 +286,7 @@ class SQLPolicyEngine:
             for func in ast.find_all(exp.Func):
                 # sqlglot models boolean operators as function-like nodes too;
                 # they are SQL syntax, not user-defined function invocations.
-                if isinstance(func, (exp.And, exp.Or, exp.Not, exp.Exists)):
+                if isinstance(func, exp.And | exp.Or | exp.Not | exp.Exists):
                     continue
                 function_name = func.name.lower().strip()
                 expression_name = type(func).__name__.lower()
