@@ -3,12 +3,17 @@
 COMPOSE := docker compose
 ENV_FILE := .env
 
-.PHONY: up start down stop restart status logs follow setup check-env check-docker migrate bootstrap-admin test lint clean
+.PHONY: up start rebuild down stop restart status logs follow setup check-env check-docker migrate bootstrap-admin test lint clean
 
-# `make` starts the complete application in the background.
+# `make` starts the complete application in the background, reusing built images.
 up: check-docker check-env
-	$(COMPOSE) up --build -d
+	$(COMPOSE) up -d
 	@printf '\nSafeQuery AI is starting.\nOpen in your browser: \033]8;;http://localhost:8501\033\\http://localhost:8501\033]8;;\033\\\nAPI docs:             http://localhost:8000/docs\nHealth:               http://localhost:8000/health\n\nUse `make logs` to follow startup, or `make status` to check services.\n'
+
+# Rebuild images after changing application code or dependencies.
+rebuild: check-docker check-env
+	$(COMPOSE) up --build -d
+	@printf '\nSafeQuery AI is rebuilding and starting.\nOpen in your browser: \033]8;;http://localhost:8501\033\\http://localhost:8501\033]8;;\033\\\nAPI docs:             http://localhost:8000/docs\nHealth:               http://localhost:8000/health\n\nUse `make logs` to follow startup, or `make status` to check services.\n'
 
 start: up
 

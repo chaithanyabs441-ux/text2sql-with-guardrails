@@ -97,12 +97,26 @@ cp .env.example .env          # PowerShell: Copy-Item .env.example .env
 
 # 2. Set GENERATOR_API_KEY and JUDGE_API_KEY in .env  (this file is git-ignored)
 
-# 3. Build and start PostgreSQL, the API, and the frontend
+# 3. Start PostgreSQL, the API, and the frontend (builds images on first run)
 make
 ```
 
 `make` prints the clickable frontend address (`http://localhost:8501`) after Compose starts, along with
 the API docs and health URLs. If your terminal does not support clickable links, copy the printed URL.
+After the first build, `make` reuses the existing Docker images, so starting the app again does not rebuild
+them or reinstall Python packages. Run `make rebuild` when you change application code or dependencies;
+Docker then rebuilds only layers affected by those changes.
+
+Useful Make commands:
+
+| Command | Action |
+| --- | --- |
+| `make` | Start the app with existing images, building them only if needed. |
+| `make rebuild` | Rebuild changed images and start the app. |
+| `make status` | Show service status. |
+| `make logs` | Show recent service logs. |
+| `make follow` | Follow service logs. |
+| `make stop` | Stop containers while preserving PostgreSQL data. |
 
 | Service | URL |
 | --- | --- |
@@ -520,14 +534,15 @@ Charts: [`reliability.svg`](eval/results/calibration/reliability.svg),
 python -m pip install -e ".[dev]"
 
 # Run the tests (coverage is enabled by default)
-pytest
+make test
 
 # Lint
-ruff check .
+make lint
 ```
 
 The test suite includes the original SQL policy tests plus auth/session invalidation, role escalation,
-dataset grant, and nested SQL table-scope checks.
+dataset grant, and nested SQL table-scope checks. GitHub Actions runs lint and tests on every push and pull
+request.
 
 ### Back up and restore
 
